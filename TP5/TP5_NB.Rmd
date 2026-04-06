@@ -1,0 +1,136 @@
+---
+title: "TP5 : Modèles mixtes (2)" 
+author: "LBRAI2222"
+date: '`r format(Sys.time(), "%B %d, %Y")`'
+output:
+  html_document: # options pour la mise en page des sortie HTML
+    smart: FALSE
+    code_folding: hide #  Cache le code  
+    collapsed: yes # Crée un document unique 
+    fig_caption: yes # Figures encapsulées ? 
+    fig_height: 5 # Hauteur par défaut des figures
+    fig_width: 8 # Largeur par défaut des figures
+    highlight: tango # Style de mise en valeur du code
+    number_sections: yes # Ajout table des matières 
+    theme: united  # Style du document
+    toc: no 
+---
+  
+```{r setup, include = FALSE}
+# Pour éviter que Rmd mette par défaut deux # au début de chaque ligne de code:
+knitr::opts_chunk$set(comment="") 
+
+# Liste des packages à charger
+require(pander) # Afficher de jolis tableaux
+panderOptions('missing', '') # Là où les données contiennent des Na, ne rien afficher
+require(ggplot2)
+theme_set(theme_classic()) # Afficher les graphes ggplot avec un fond blanc
+
+# TP2:
+require(lme4)
+require(lmerTest)
+require(plot.matrix)
+```
+# . Introduction  
+
+Vous avez étudié la hauteur de plants de maïs chez différentes variétés(graines) et avec trois types d'engrais différents. Les engrais et les variétés peuvent être appliqués uniquement à une parcelle d'un coup. Vous souhaitez à présent analyser vos résultats.
+
+**1. Vous ne vous souvenez pas très bien de votre plan d'expérience. Pour vous rappeler de celui-ci, chargez les données récoltées (*TP5_data.csv*) et affichez-les ($y\equiv$ hauteur des plants de maïs [cm]). Essayez de représenter le schéma de l'expérience sur une feuille à part.**  
+
+```{r}
+mydata <- read.csv("TP5_data.csv")
+factors <- c("graine", "engrais", "parcelle", "plant", "mesure")
+mydata[factors] <- lapply(mydata[factors], factor)
+
+pander(summary(mydata))
+ggplot(mydata,aes(x=engrais,y=y)) + geom_point(alpha = 0.5, size=3) + facet_wrap(~graine) +
+               labs(x= "Engrais",
+                    y= "Hauteur du plant")
+```
+
+**2. Vos données sont-elles balancées?**  
+Oui
+```{r}
+pander(table(mydata[,c("graine", "engrais","parcelle","plant")]))
+```
+
+
+**Lors de ce TP, les modèles seront codés en utilisant la méthode *'sum contrast'* **  
+ 
+Avec la méthode *'treatment/dummy contrast'*, les paramètres estimés sont $\mu + \alpha_1$, $\alpha_2 - \alpha_1$ et $\alpha_3 - \alpha_1$. Cette méthode est surtout utile lorsque l'on a un niveau du facteur qui correspond au témoin de l'expérience.  
+Avec la méthode *'sum contrast'*, les paramètres estimés sont $\mu$, $\alpha_1$ et $\alpha_2$. Étant donné que $\sum \hat{\alpha}_i = 0$, on peut trouver facilement $\hat{\alpha}_3=-\hat{\alpha}_1 - \hat{\alpha}_2$ si les données sont balancées.  
+
+# . Modèle 1 
+**3. Pourquoi est-ce intéressant d'inclure les facteurs *parcelle* et *plant* dans l'analyse des résultats ? **  
+
+Pour éviter que la part de variance de la réponse due à ces facteurs ne soit confondue avec la variance des résidus. Si c'est le cas, on observera moins facilement l'effet des facteurs $\alpha$ et $\beta$.  
+
+**4. Combien de réplications ont été faites pour chaque niveau de facteur ainsi que pour la combinaison des deux facteurs (traitement)? Les deux mesures sur un même plant sont-elles considérées comme des réplications?**  
+
+*Rappel:*  
+- **Unité expérimentale**: la plus petite unité à laquelle un traitement est appliqué  
+- **Réplication**: consiste à appliquer chaque traitement à plusieurs unités expérimentales et mutuellement indépendantes  
+- **Pseudo-réplication**: consiste à appliquer plusieurs mesures dans une même unité expérimentale  
+
+12 réplications pour le facteur 'graine' et pour le facteur 'engrais' (car ils sont appliqués par parcelle). Pour la combinaison des deux facteurs, nous avons 4 réplications. 
+
+Les 4 plantes ainsi que les deux mesures par plante sont considérées comme des pseudo-réplications. 
+
+```{r}
+table(mydata$engrais)/8 # 4 plantes par parcelle et deux mesures, donc 8 pseudoréplications 
+table(mydata[,c("graine", "engrais")])/8 # interaction
+```
+
+**5. Faites un modèle en incluant les facteurs *graine*, *engrais*, *parcelle* et *plant* de manière judicieuse. Affichez le résumé de ce modèle et faites un test ANOVA. Ecrivez l'équation de votre modèle.**  
+
+(Pour avoir les pvaleurs des effets fixes et l'anova correcte, il faut charger le package *lmerTest*)  
+
+$y_{ijklm} = \mu + \alpha_i + \beta_j + \alpha\beta_{ij} + c_{ijk} + d_{l(ijk)} + \epsilon_{ijklm}$  
+
+
+```{r}
+mod1 <- lmer(y~graine*engrais + (1|IDparcelle) + (1|IDparcelle:plant), data = mydata, contrasts = list(graine=c("contr.sum"),engrais=c("contr.sum")))
+summary(mod1)
+anova(mod1)
+```
+
+
+**6. À quoi correspondent les paramètres que vous obtenez dans la colonne *estimate* des effets fixes?**  
+L'estimation de la moyenne de la réponse $\mu$ ainsi que les estimations des $\alpha_i$, $\beta_j$ et $\alpha \beta_{ij}$ pour les deux premiers niveaux de chaque facteur. 
+
+
+**7. Combien de paramètres semblent significatifs dans votre modèle (pour un $\alpha$ de 0.05) ?**  
+Trois. Si on regarde l'anova, on remarque aussi que les facteurs  'graine' et 'engrais' sont significatifs, mais pas l'interaction. 
+
+**8. Que vaut la covariance entre les hauteurs de deux plants de maïs d'une même parcelle?**  
+2.184798
+
+**9. Calculez et affichez la matrive V. Pourquoi ne retrouve-t-on que deux valeurs différentes dans cette matrice? À quoi correspondent ces valeurs?**  
+On pourrait croire qu'il n'y a que deux valeurs (mis à part les zéros) car la variance des mesures est très faible. 	
+2.259146 = $\sigma^2_Y = \sigma^2_c + \sigma^2_d + \sigma^2_{\epsilon}$  
+2.257078 = $\sigma^2_c + \sigma^2_d$  
+2.184798 = $\sigma^2_c$  
+
+```{r}
+G <- as.matrix(getME(mod1, "Lambda") * sigma(mod1)) ** 2
+Z <- as.matrix(getME(mod1,"Z"))
+R <-  sigma(mod1)**2 * diag(nrow(mydata))
+V <- Z %*% G %*% t(Z) + R
+mybreaks = sort(unique(c(V))+0.01)
+plot(V[1:16,1:16], border=NA, breaks=mybreaks)
+```
+
+# . Modèle 2
+**10. La colonne *Ymoyen* correspond à la moyenne des hauteurs par parcelle pour chaque traitement. Estimez un deuxième modèle en utilisant *Ymoyen* comme réponse. Affichez le résumé de ce modèle.Astuce: pour utiliser la colonne *Ymoyen* en retirant les cases vides, vous pouvez utiliser : `mydata[!is.na(mydata$Ymoyen),]`**
+
+```{r}
+mod2 <- lm(Ymoyen~graine*engrais, data = mydata[!is.na(mydata$Ymoyen),], contrasts = list(graine=c("contr.sum"),engrais=c("contr.sum")))
+summary(mod2)
+anova(mod2)
+```
+
+**11. Comparez ce modèle au modèle 1. Qu'observez-vous? Selon vous, à quelle particularité du plan d'expérience est due ce que vous observez ? Quel pourrait être l'intérêt de travailler sur les moyennes?**   
+
+On obtient les mêmes résultats que pour la partie fixe du modèle 1 car le plan est balancé. C'est plus simple de travailler avec les moyennes si le plan est balancé et que l'on est pas intéressé de connaitre les composantes de variance. 
+
+

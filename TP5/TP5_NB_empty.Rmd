@@ -1,0 +1,95 @@
+---
+title: "TP5 : Modèles mixtes (2)" 
+author: "LBRAI2222"
+date: '`r format(Sys.time(), "%B %d, %Y")`'
+output:
+  html_document: # options pour la mise en page des sortie HTML
+    smart: FALSE
+    code_folding: hide #  Cache le code  
+    collapsed: yes # Crée un document unique 
+    fig_caption: yes # Figures encapsulées ? 
+    fig_height: 5 # Hauteur par défaut des figures
+    fig_width: 8 # Largeur par défaut des figures
+    highlight: tango # Style de mise en valeur du code
+    number_sections: yes # Ajout table des matières 
+    theme: united  # Style du document
+    toc: no 
+---
+  
+```{r setup, include = FALSE}
+# Pour éviter que Rmd mette par défaut deux # au début de chaque ligne de code:
+knitr::opts_chunk$set(comment="") 
+
+# Liste des packages à charger
+require(pander) # Afficher de jolis tableaux
+panderOptions('missing', '') # Là où les données contiennent des Na, ne rien afficher
+require(ggplot2)
+theme_set(theme_classic()) # Afficher les graphes ggplot avec un fond blanc
+
+# TP2:
+require(lme4)
+require(lmerTest)
+require(plot.matrix)
+```
+# . Introduction  
+
+Vous avez étudié la hauteur de plants de maïs chez différentes variétés(graines) et avec trois types d'engrais différents. Les engrais et les variétés peuvent être appliqués uniquement à une parcelle d'un coup. Vous souhaitez à présent analyser vos résultats. 
+
+**1. Vous ne vous souvenez pas très bien de votre plan d'expérience. Pour vous rappeler de celui-ci, chargez les données récoltées (*TP5_data.csv*) et affichez-les ($y\equiv$ hauteur des plants de maïs [cm]). Essayez de représenter le schéma de l'expérience sur une feuille à part.**  
+
+```{r}
+#n'oubliez pas de spécifier quelles colonnes sont des "factors" dans R. 
+```
+
+**2. Vos données sont-elles balancées?**  
+
+```{r}
+```
+
+**Lors de ce TP, les modèles seront codés en utilisant la méthode *'sum contrast'* **  
+ 
+Avec la méthode *'treatment/dummy contrast'*, les paramètres estimés sont $\mu + \alpha_1$, $\alpha_2 - \alpha_1$ et $\alpha_3 - \alpha_1$. Cette méthode est surtout utile lorsque l'on a un niveau du facteur qui correspond au témoin de l'expérience.  
+Avec la méthode *'sum contrast'*, les paramètres estimés sont $\mu$, $\alpha_1$ et $\alpha_2$. Étant donné que $\sum \hat{\alpha}_i = 0$, on peut trouver facilement $\hat{\alpha}_3=-\hat{\alpha}_1 - \hat{\alpha}_2$ si les données sont balancées.  
+
+# . Modèle 1 
+**3. Pourquoi est-ce intéressant d'inclure les facteurs *parcelle* et *plant* dans l'analyse des résultats ? **  
+
+**4. Combien de réplications ont été faites pour chaque niveau de facteur ainsi que pour la combinaison des deux facteurs (traitement)? Les deux mesures sur un même plant sont-elles considérées comme des réplications?**  
+
+```{r}
+```
+
+**5. Faites un modèle en incluant les facteurs *graine*, *engrais*, *parcelle* et *plant* de manière judicieuse. Celui-ci comprendra notamment des interactions pour les effets fixes mais pas d'interactions entre les effets fixes et aléatoires (ni entre effets aléatoires). Affichez le résumé de ce modèle et faites un test ANOVA. Ecrivez l'équation de votre modèle.**  
+
+(Pour avoir les pvaleurs des effets fixes et l'anova correcte, il faut charger le package *lmerTest*)  
+
+```{r}
+#rajouter qu'on utilise la méthode "contr.sum" dans lmer (doit se spécifier pour les deux facteurs fixes) : 
+#lmer(... , contrasts = list(graine=c("contr.sum"),engrais=c("contr.sum")))
+```
+
+
+**6. À quoi correspondent les paramètres que vous obtenez dans la colonne *estimate* des effets fixes?**  
+
+**7. Combien de paramètres semblent significatifs dans votre modèle (pour un $\alpha$ de 0.05) ?**  
+
+**8. Que vaut la covariance entre les hauteurs de deux plants de maïs d'une même parcelle?**  
+**9. Calculez et affichez la matrive V. Pourquoi ne retrouve-t-on que deux valeurs différentes dans cette matrice? À quoi correspondent ces valeurs?**  
+
+```{r}
+#G <- as.matrix(getME(mod1, "Lambda") * sigma(mod1)) ** 2
+#Z <- as.matrix(getME(mod1,"Z"))
+#R <-  sigma(mod1)**2 * diag(nrow(mydata))
+#V <- ?
+#mybreaks = sort(unique(c(V))+0.01)
+#plot(V[1:16,1:16], border=NA, breaks=mybreaks)
+```
+
+# . Modèle 2
+**10. La colonne *Ymoyen* correspond à la moyenne des hauteurs par parcelle pour chaque traitement. Estimez un deuxième modèle en utilisant *Ymoyen* comme réponse. Affichez le résumé de ce modèle et réalisez une anova.Astuce: pour utiliser la colonne *Ymoyen* en retirant les cases vides, vous pouvez utiliser : `mydata[!is.na(mydata$Ymoyen),]`**
+
+```{r}
+
+```
+
+**11. Comparez ce modèle au modèle 1. Qu'observez-vous? Selon vous, à quelle particularité du plan d'expérience est due ce que vous observez ? Quel pourrait être l'intérêt de travailler sur les moyennes?**   
