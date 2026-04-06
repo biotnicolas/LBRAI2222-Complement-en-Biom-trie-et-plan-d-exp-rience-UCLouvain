@@ -1,0 +1,145 @@
+---
+title: "TP2 : Analyse de la variance à deux critères de classification hiérarchisés" 
+author: "LBRAI2222"
+date: '`r format(Sys.time(), "%B %d, %Y")`'
+output:
+  html_document: # options pour la mise en page des sortie HTML
+    smart: FALSE
+    code_folding: hide #  Cache le code  
+    collapsed: yes # Crée un document unique 
+    fig_caption: yes # Figures encapsulées ? 
+    fig_height: 5 # Hauteur par défaut des figures
+    fig_width: 8 # Largeur par défaut des figures
+    highlight: tango # Style de mise en valeur du code
+    number_sections: yes # Ajout table des matières 
+    theme: united  # Style du document
+    toc: no 
+editor_options: 
+  chunk_output_type: console
+---
+```{r setup, include = FALSE}
+# Pour éviter que Rmd mette par défaut deux # au début de chaque ligne de code:
+knitr::opts_chunk$set(comment="") 
+
+# Liste des packages à charger
+require(pander) # Afficher de jolis tableaux
+panderOptions('missing', '') # Là où les données contiennent des Na, ne rien afficher
+require(ggplot2)
+theme_set(theme_classic()) # Afficher les graphes ggplot avec un fond blanc
+
+# TP2:
+require(lme4)
+require(lmerTest)
+require(emmeans)
+require(plot.matrix)
+```
+
+# Contexte 
+
+Lors de ce TP, nous allons nous intéresser à la part de variabilité héréditaire de la durée de fécondité chez des coléoptères femelles. Nous disposons du fichier *beetles_fecondity.csv* contenant les données suivantes:  
+
+**Sire**: le numéro d'identification du mâle  
+**dam**: le numéro d'identification de la femelle  
+**progeny**: le numéro d'identification de la descendance (on ne considère ici que les individus femelles)  
+**fec**: la durée de fécondité  
+Nous savons aussi que chaque femelle a été fécondée par un seul mâle.  
+
+**1. Chargez les données, explorez-les et visualisez-les  **  
+
+Avant toute chose, il s'agit d'explorer et de visualiser vos données afin d'avoir un premier apperçu des variables et éventuels problèmes que vous pourriez rencontrer. Montrez les 15 premières lignes de votre fichier avec la fonction `head()`.
+
+```{r}
+
+```
+
+Comme on s'apperçoit que l'identifiant des individus est un numéro, il faut indiquer à R que ce sont des facteurs et non des variables continues:
+
+```{r}
+### Remplacez "mydata" par vos données
+
+#mydata$Sire <- as.factor(mydata$Sire)
+#mydata$dam <- as.factor(mydata$dam)
+#mydata$progeny <- as.factor(mydata$progeny)
+```
+
+Essayez de représenter les descendantes ("progeny") de chaque père ("Sire") et chaque mère ("dam"). Utilisez par exemple la fonction `facet_wrap()` dans un `ggplot`.
+
+```{r}
+
+```
+
+**2.  Combien de mâles différents y a-t-il dans vos données? Combien de femelles différentes? De descendantes?**  
+
+(Vous pouvez utiliser les fonctions `nrow()` et `unique()` pour vous aider)  
+
+```{r}
+
+```
+
+**3. Vos données sont-elles balancées? Qu'est-ce que cela implique? **  
+
+
+```{r}
+```
+
+**4. Quelle est selon vous l'équation du modèle que l'expérimentateur cherche à estimer? Combien de paramètres cherche-t-on à estimer ? Quels sont ces paramètres ?**  
+
+**5. Donnez l'équation matricielle de ce modèle. **  
+
+**6. Estimez votre modèle à l'aide de *lme4::lmer***  
+```{r}
+#fonctionnement lmer similaire à lm (voir aide de R)
+#un facteur aléatoire se note : (1|Fact1)
+#un facteur hierarchisé se note : Fact2:Fact1, si le Fact2 est hierarchisé à Fact1
+
+```
+
+**7. Affichez le résumé de votre modèle. (1) Quelle est la valeur des différents paramètres? (2) Comment est calculée la Std. Error de l'intercept ? (3) Qu'indique le test t de la partie fixe ?**  
+
+
+```{r}
+```
+
+**8. Donnez un intervalle de confiance à $\mu$ à l'aide de la fonction `emmeans()`. Donnez ensuite cet intervalle pour un niveau de confiance de 0.99.**  
+
+```{r}
+
+```
+
+**9. Affichez l'analyse de la variance de votre modèle à l'aide de la fonction `ranova()`. (1) Si l'on considère un niveau de confiance de 0.99, peut-on considérer que l'effet du facteur mâle est significatif ? (2) Quelles sont les hypothèses (H0 et H1) du test effectué ?**  
+
+```{r}
+```
+
+**La variance de l'effet du facteur femelle est-elle significative ?**  
+
+**Et si l'on considère un niveau de confiance de 0.95? Les variances des effets des facteurs mâle et femelle sont elles significatives ?** 
+
+**10. Quelles devraient être les dimensions des matrices G, Z, R et V? (lignesxcolonnes)**  
+G:   
+Z:   
+R:   
+V: 
+
+**11. Calculez les matrices G, Z, R et V estimées par le modèle sachant que $R=\sigma^2I$ et $V=ZGZ'+R$**  
+```{r}
+### Indices (remplacer "mod" par votre modèle) : 
+
+#G <- as.matrix(getME(mod, "Lambda") * sigma(mod)) ** 2
+#Z <- as.matrix(getME(mod,"Z"))
+## A vous de calculer R et V en sachant que "sigma(mod)" = écart-type du modèle et "diag()" permet de créer une matrice diagonale
+```
+
+**12. Vérifiez la dimension de chacune de ces matrices à l'aide de `dim()`. Est-ce que cela vous semble cohérent?**  
+```{r}
+```
+
+**13. Visualisez les 100 premières lignes des 100 premières colonnes de la matrie V. Comprenez-vous la structure de cette matrice? Pouvez-vous décomposer chaque valeur (représentée par une couleur différente sur le grahique) sur base des variances estimées par le modèle?**  
+
+```{r}
+# Remplacez le nom de votre matrice V à la place de "V"
+
+#mybreaks = sort(unique(c(V)) +1)
+#plot(V[1:100,1:100], border=NA, breaks=mybreaks)
+```
+

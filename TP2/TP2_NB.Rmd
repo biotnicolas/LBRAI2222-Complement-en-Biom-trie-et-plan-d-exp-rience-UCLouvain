@@ -1,0 +1,171 @@
+---
+title: "TP2 : Analyse de la variance à deux critères de classification hiérarchisés" 
+author: "LBRAI2222"
+date: '`r format(Sys.time(), "%B %d, %Y")`'
+output:
+  html_document: # options pour la mise en page des sortie HTML
+    smart: FALSE
+    code_folding: hide #  Cache le code  
+    collapsed: yes # Crée un document unique 
+    fig_caption: yes # Figures encapsulées ? 
+    fig_height: 5 # Hauteur par défaut des figures
+    fig_width: 8 # Largeur par défaut des figures
+    highlight: tango # Style de mise en valeur du code
+    number_sections: yes # Ajout table des matières 
+    theme: united  # Style du document
+    toc: no 
+editor_options: 
+  chunk_output_type: console
+---
+```{r setup, include = FALSE}
+# Pour éviter que Rmd mette par défaut deux # au début de chaque ligne de code:
+knitr::opts_chunk$set(comment="") 
+
+# Liste des packages à charger
+require(pander) # Afficher de jolis tableaux
+panderOptions('missing', '') # Là où les données contiennent des Na, ne rien afficher
+require(ggplot2)
+theme_set(theme_classic()) # Afficher les graphes ggplot avec un fond blanc
+
+# TP2:
+require(lme4)
+require(lmerTest)
+require(emmeans)
+require(plot.matrix)
+```
+
+# Contexte 
+
+Lors de ce TP, nous allons nous intéresser à la part de variabilité héréditaire de la durée de fécondité chez des coléoptères femelles. Nous disposons du fichier *beetles_fecondity.csv* contenant les données suivantes:  
+
+**Sire**: le numéro d'identification du mâle  
+**dam**: le numéro d'identification de la femelle  
+**progeny**: le numéro d'identification de la descendance (on ne considère ici que les individus femelles)  
+**fec**: la durée de fécondité  
+Nous savons aussi que chaque femelle a été fécondée par un seul mâle.  
+
+Avant toute chose, il s'agit d'explorer et de visualiser vos données afin d'avoir un premier apperçu des variables et éventuels problèmes que vous pourriez rencontrer.
+
+```{r}
+mydata <- read.csv("beetles_fecondity.csv")
+head(mydata, 15)
+```
+
+Comme on s'apperçoit que l'identifiant des individus est un numéro, il faut indiquer à R que ce sont des facteurs et non des variables continues:
+
+```{r}
+mydata$Sire <- as.factor(mydata$Sire)
+mydata$dam <- as.factor(mydata$dam)
+mydata$progeny <- as.factor(mydata$progeny)
+```
+
+**1. Chargez les données, explorez-les et visualisez-les  **  
+Essayez de représenter les descendantes ("progeny") de chaque père ("Sire") et chaque mère ("dam"). Utilisez par exemple la fonction `facet_wrap()` dans un `ggplot`.
+
+```{r}
+pander(summary(mydata))
+ggplot(mydata) + geom_point(aes(x=dam, y=fec)) + facet_wrap(~Sire)
+```
+
+**2.  Combien de mâles différents y a-t-il dans vos données? Combien de femelles différentes? De descendantes?**  
+Il y a 24 mâles différents. Pour connaitre le nombre de femelles, il faut regarder combien de combinaisons mâle-femelle nous retrouvons dans les données. Le nombre de descendantes devrait être égal au nombre de lignes dans le dataframe. Mais pour être sûrs qu'il n'y ait pas de doublons, c'est toujours mieux de vérifier:
+
+```{r}
+nfemelles = nrow(unique(mydata[,c("Sire", "dam")])) #Unique : same dataframe without any duplicate
+nprog = nrow(unique(mydata[,c("Sire", "dam", "progeny")]))
+```
+Il y a `r nfemelles` femelles et `r nprog` descendantes.  
+
+**3. Vos données sont-elles balancées? Qu'est-ce que cela implique? **  
+Dans la figure que vous avez réalisé au point 1, vous observez tout de suite que les mâles n'ont pas tous été associés à 5 femelles. Les données ne sont donc pas balancées. On peut aussi le voir dans la table ci-dessous:
+
+```{r}
+table(mydata[,c("Sire","dam")])
+```
+
+Cela implique que les estimations des paramètres calculées avec la méthode `lm` ne seront pas correctes.
+
+**4. Quelle est selon vous l'équation du modèle que l'expérimentateur cherche à estimer? Combien de paramètres cherche-t-on à estimer?**  
+$y = \mu + a_i + b_{j(i)} + \epsilon_{ijk}$  
+Nous cherchons à estimer 4 paramètres: $\mu$, $\sigma^2_{a}$, $\sigma^2_{b}$ et $\sigma^2$
+
+
+**5. Donnez l'équation matricielle de ce modèle. **  
+$Y = X\beta + Zu + \epsilon$  
+Avec:
+$Y \sim N(X\beta,V)$  
+$u \sim N(0,G)$  
+$\epsilon \sim N(0,R)$  
+Note: comme $\beta$ est une constante (car facteurs fixes), il n'a pas de variance. 
+
+**6. Estimez votre modèle à l'aide de *lme4::lmer***  
+```{r}
+mod <- lme4::lmer(fec ~ 1 + (1|Sire) + (1|dam:Sire), mydata)
+```
+
+**7. Affichez le résumé de votre modèle. (1) Quelle est la valeur des différents paramètres? (2) Comment est calculée la Std. Error de l'intercept ? (3) Qu'indique le test t de la partie fixe ?**  
+
+(1) $\hat{\mu} = 55.467$,  $\hat{\sigma}^2_{b}=114.6$,  $\hat{\sigma}^2_{a}=31.8$  et  $\hat{\sigma}^2=177.5$  
+
+(2) Notez que dans le résumé du modèle, *Std.Dev.* correspond aux écarts-types des facteurs aléatoires, alors que *Std. Error* correspond aux écarts-types des **estimateurs** des facteurs fixes. 
+
+La *Std. Error* de l'intercept correspond à l'erreur standard de la moyenne. Elle est calculée à partir de $\sqrt{\frac{MS_{Sire}}{N}}$ (NB : la $MS_{Sire}$ peut être calculée à partir d'une ANOVA classique avec la fonction $lm$. Elle vaut $1477.51$, et N vaut $549$).
+
+(3) Le test t n'est pas très important dans notre cas. Effectivement, celui-ci permet de vérifier si la moyenne des *fec* est égale à zéro. 
+
+```{r}
+summary(mod)
+```
+
+**8. Donnez un intervalle de confiance à $\mu$. Bonus: donnez cet intervalle pour un niveau de confiance de 0.99.**  
+Ici, *Std. Error* correspond à l'écart-type de $\hat{\mu}$ (c'est la même valeur que le *Std. Error* du résumé du modèle).
+```{r}
+emmeans(mod, ~ 1)
+emmeans(mod, ~ 1, level=.99)
+```
+
+**9. Affichez l'analyse de la variance de votre modèle à l'aide de la fonction `ranova()`. (1) Si l'on considère un niveau de confiance de 0.99, peut-on considérer que l'effet du facteur mâle est significatif ? (2) Quel est le principe du test effectué ?**  
+
+(1) Non, car la p-valeur associée à la variance estimée du facteur mâle est plus grande que $0.01$. Nous ne pouvons donc pas dire que la variabilité due au facteur mâle impacte significativement la variation totale des résultats.
+
+(2) Le test calcul pour chaque facteur le *LRT* à partir des fonctions de vraissemblances du modèle restreint (sans le facteur) et du modèle complet ($LRT = -2*log(\frac{L(R)}{L(C)})$). Les hypothèses du test $\chi^2$ sont les suivantes : 
+- HO : $\sigma_{Sire} = 0$
+- H1 : $\sigma_{Sire} \ne 0$
+```{r}
+ranova(mod)
+```
+
+**La variance de l'effet du facteur femelle est-elle significative ?**  
+Oui  
+**Et si l'on considère un niveau de confiance de 0.95? Les variances des effets des facteurs mâle et femelle sont elles significatives ?**   
+Oui pour les deux.  
+
+**10. Quelles devraient être les dimensions des matrices G, Z, R et V? (lignesxcolonnes)**  
+G: 134x134 (134=le nombre de femelles différentes + le nombre de mâles différents)  
+Z: 549x134  
+R: 549x549  
+V: 549x549
+
+**11. Calculez les matrices G, Z, R et V estimées par le modèle sachant que $R=\sigma^2I$ et $V=ZGZ'+R$**  
+```{r}
+G <- as.matrix(getME(mod, "Lambda") * sigma(mod)) ** 2
+Z <- as.matrix(getME(mod,"Z"))
+R <-  sigma(mod)**2 * diag(nrow(mydata))
+V <- Z %*% G %*% t(Z) + R
+```
+
+**12. Vérifiez la dimension de chacune de ces matrices à l'aide de *dim()*. Est-ce que cela vous semble cohérent?**  
+Oui 
+```{r}
+dim(G);dim(Z);dim(R);dim(V)
+```
+
+**13. Visualisez les 100 premières lignes des 100 premières colonnes de la matrie V. Comprenez-vous la structure de cette matrice? Pouvez-vous décomposer chaque valeur (représentée par une couleur différente sur le grahique) sur base des variances estimées par le modèle?**  
+Rouge: $\hat{\sigma}_a^2$  
+Orange: $\hat{\sigma}_a^2 +\hat{\sigma}_b^2$  
+Jaune: $\hat{\sigma}_a^2 + \hat{\sigma}_b^2 + \hat{\sigma}_{\epsilon}^2$  
+```{r}
+mybreaks = sort(unique(c(V)) +1)
+plot(V[1:100,1:100], border=NA, breaks=mybreaks)
+```
+
