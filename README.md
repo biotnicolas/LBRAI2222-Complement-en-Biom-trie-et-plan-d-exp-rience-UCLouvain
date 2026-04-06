@@ -22,4 +22,4 @@ L'idée derrière cette structure est que toute personne intéressée puisse se 
 - TP7 – Plans de criblage et plans factoriels fractionnaires
 - TP8 – Plans pour l’estimation de surface de réponse
 
-@Crédits: ces documents sont fortement basés sur des versions précédantes créées par Olivia Bleeckx et Bernadette Govaert. Ils sont maintenant le fruit de modifications et adaptations réalisées par Nicolas Biot, en collaboration avec Laura Symul et Xavier Draye, professeurs du cours. 
+@Crédits: ces documents sont fortement basés sur des versions précédantes créées par Olivia Bleeckx et Bernadette Govaert. Ils sont maintenant le fruit de modifications et adaptations réalisées par Nicolas Biot, en collaboration avec Xavier Draye et [Laura Symul](https://lasy.github.io), co-titulaires du cours. 
