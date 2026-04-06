@@ -3,11 +3,13 @@ Ces 8 exercices de travaux pratiques corrigés abordent les méthodes de planifi
 
 Ces travaux pratiques sont conçus dans le cadre d'un cours de **Complément en Biométrie et plan d'expérience (LBRAI2222)**, à la faculté des Bioingénieurs de l'UCLouvain (Belgique). 
 
-**Chaque séance de TP fonctionnera de la manière suivante :** 
+**Chaque séance de TP est structurée de la manière suivante :** 
 
-- Introduction au TP et feedback sur le TP précédent
-- Travail sur un fichier Rmarkdown vide (TPX_empty) à remplir et à rendre sous forme de devoir pour la fin du TP 
-- Correction de son travail à l'aide du fichier de correction de l'assistant (TPX_NB) et remplissage d'un formulaire Moodle pour la fin de la même semaine.
+- Un document pdf de rappel de la matière 
+- Un fichier Rmarkdown vide (TPX_empty) à tenter de remplir soi-même 
+- Un fichier Rmarkdown de correction (TPX_NB)
+
+L'idée derrière cette structure est que toute personne intéressée puisse se former elle-même en tentant de remplir le fichier vide puis en le comparant avec la réponse. 
   
 **Voici le plan des travaux pratiques:** 
 
