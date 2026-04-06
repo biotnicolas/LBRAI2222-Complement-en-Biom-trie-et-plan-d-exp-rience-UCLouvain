@@ -1,0 +1,323 @@
+---
+title: "TP7 : Plans factoriels complets et fractionnaires à 2 niveaux" 
+author: "LBRAI2222"
+date: '`r format(Sys.time(), "%B %d, %Y")`'
+output:
+  html_document: # options pour la mise en page des sortie HTML
+    smart: FALSE
+    code_folding: hide #  Cache le code  
+    collapsed: yes # Crée un document unique 
+    fig_caption: yes # Figures encapsulées ? 
+    fig_height: 5 # Hauteur par défaut des figures
+    fig_width: 8 # Largeur par défaut des figures
+    highlight: tango # Style de mise en valeur du code
+    number_sections: yes # Ajout table des matières 
+    theme: united  # Style du document
+    toc: yes # Table des matiere ?
+    toc_depth: 3  # Profondeur table des matières
+    toc_float: yes # Table des matières flottante
+editor_options: 
+  chunk_output_type: console
+---
+  
+```{r setup, include = FALSE}
+# Pour éviter que Rmd mette par défaut deux # au début de chaque ligne de code:
+knitr::opts_chunk$set(comment="") 
+# Packages
+require(FrF2)
+require(readxl)
+require(pander)
+
+```
+
+# Génération d'un Plan Factoriel Complet (PFC)  
+
+Au cours théorique vous avez appris ce qu'était un Plan Factoriel Complet. Faites tourner l'exemple ci-dessous et répondez aux questions qui suivent. 
+
+```{r}
+Design=FrF2(nruns = 16,nfactors = 4,replications =2,randomize=FALSE,repeat.only=TRUE)
+design.info(Design)
+DM=as.data.frame(desnum(Design))
+DM  # DM = Design matrix
+```
+
+## Répondez aux questions suivantes concernant ce plan
+
+* Justifiez pourquoi il s'agit d'un Plan Factoriel Complet. 
+* Combien de facteurs sont testés pour combien d'essais au total ?  
+* Combien de niveaux a chacun des facteurs ?  
+* Que représentent les valeurs -1 et 1 pour chacun des facteurs ?  
+
+## Etude de l'orthogonalité du plan
+
+La définition de l'orthogonalité n'est pas toujours claire dans la litterature.  Nous allons dans ce cours toujours lier un plan à un modèle d'intérêt qu'on désire estimer.  On dira alors qu'un plan est orthogonal pour ce modèle s'il permet d'estimer les paramètres de façon non corrélée. 
+
+Répondez sur cette base aux questions suivantes.
+
+* Quel est le plus grand modèle polymonial qui peut être estimé avec ce plan ?  
+* On va se limiter ici au modèle comprenant tous les effets principaux et toutes les interactions 2 à 2 entre facteurs.  
+* Comment vérifier l'orthogonalité du plan par rapport à ce dernier modèle ?  
+* Etudiez le code ci-dessous et validez que le plan est bien orthogonal.  
+ 
+```{r}
+X=model.matrix(~A+B+C+D+A:B+A:C+A:D+B:C+B:D+C:D,Design)
+# Matrice du modèle
+X
+# Matrice de X'X
+t(X)%*%X
+```
+
+# Analyse par régression des résultats d'un plan factoriel complet  
+## Présentation de l'exemple 
+
+Les vaccins comprenant un conjugué antigène de polysaccharide (PS) lié à une protéine ont de multiples applications. Dans le cadre de cette étude, on s'intéresse au Rendement en terme de PS couplé (%). Celui-ci dépend de :  
+C : Concentration initiale de PS [2, 4] mg/l  
+P : PH d’activation [7, 9]  
+R : Ratio PS/PR [0.8, 1.2]  
+T : Type de protéine (identiques mais 2 origines différents) (T1,T2)  
+
+## Notion de valeurs standardisées 
+
+Le jeux de données avec lequel vous allez travailler est en valeurs standardisées. 
+
+* En quoi cela est-il intéressant lorsque nous travaillons avec des plans expérimentaux ?   
+* Qu'est-ce que cela change sur l'interprétation des termes du modèle ?  
+
+## Plan Factoriel Complet (PFC)
+
+### Lecture et visualisation des données 
+
+Téléchargez les données du fichier excel `TP7_PFC.xlsx` puis :  
+
+* Visualiser le fichier de données et vérifier que le plan choisi est bien un plan factoriel complet.  Est-il répété ?  
+
+```{r}
+
+```
+
+### Estimation du modèle complet de degré 2
+
+* Dites quel est le modèle le plus complet qu'il est possible d'estimer avec ce plan.  
+* Estimez un modèle de régression `lm` d'ordre 2 (comprenant tous les effets principaux et toutes les interactions d'ordre 2) pour expliquer le Rendement en fonction des 4 facteurs.  
+* Sortez le tableau résumé de la régression et une analyse des résidus.  
+* Que pensez-vous de la qualité du modèle selon des différents critères que vous connaissez.  
+* Quels termes du modèle ont un effet significatif sur la réponse ?   
+* Sortez une table d'ANOVA et comparez là au tableau des coefficients. Est ce que cette table apporte quelque chose ?  
+* Vérifier s'il y a des alias entre les termes du modèle. Pour cela, vous pouvez utiliser la fonction `aliases`. Comment auriez-vous pu trouver cette réponse sans utiliser la fonction ?  
+* Regardez aussi les écart-types des paramètres du modèle en calculant la matrice variance-covariance $\sqrt{(X'X)^{-1}*S^2}$. Ils sont tous identiques.  Pouvez-vous expliquer pourquoi ?  
+
+```{r}
+#plot des résidus
+#par(mfrow=c(2,2))
+#plot(modPFC)
+#par(mfrow=c(1,1))
+
+# aliases(mod) permet de demander quels sont les alias entre les termes du modèle.
+
+# Calcul des écarts types du modèle : 
+
+#créer le design avec FrF2: Design=FrF2(votre design)
+#en extraire la matrice X = X=model.matrix(votre formule du modele,votre Design)
+#Pour les opérations sur la matrice, voici un exemple pour (X'X)^-1 : solve(t(X)%*%X)
+
+```
+
+### Représentation graphique des résultats
+
+Le package `FrF2` propose deux manières, autres que l'anova, d'analyser l'effet des différents facteurs de votre modèle.  
+
+* Le `Daniel plot` qui est un qq plot des coefficients du modèle.  Si tous les paramètres théoriques valent 0, le graphique devrait ressembler à qqplot de données normales.  Si pas, les coefficients plus importants ressortent comme des outliers.  C'est une manière de visualiser les termes importants dans le modèle.  
+* Le plot des interaction `IAPlot` permet de visualiser les interactions 2 à 2 entre facteurs.  
+* La fonction `MEPlot` permet finalement de représenter les effets principaux des facteurs.  
+
+Questions :  
+
+* Retrouvez vous bien les termes attendus sur le `Daniel Plot` ?  
+* Retrouver vous bien les interactions attendues sur le graphe d'interaction ? Est ce que ces interactions sont fortes ou modérées.  
+* Interprétez les effets principaux des facteurs et essayez de comprendre ce qu'ils représentent et quelle est leur relation avec les coefficients du modèle.  
+ 
+
+```{r}
+# DanielPlot
+# code  -> FrF2::DanielPlot(modPFC, half=TRUE, code = TRUE)
+# InteractionPlot
+# code -> FrF2::IAPlot(modPFC)
+# MEPlot
+#code -> FrF2::MEPlot(modPFC)
+```
+
+### Simplification du modèle
+
+Estimez un modèle comprenant uniquement les termes significatifs du modèle et comparez les tableaux résumés des deux modèles.  
+
+* Les coefficients n'ont pas changé, pouvez-vous expliquer pourquoi ?  
+* Essayez d'expliquer les autres changements qui sont assez minimes.  
+
+
+```{r}
+
+```
+
+### Avec votre modèle simplifié, vérifiez si le plan reste bien orthogonal pour l'estimation de ce modèle.  
+
+```{r}
+
+```
+ 
+# Génération d'un Plan Factoriel Fractionnaire (PFF)  
+## Qu'est-ce qu'un Plan Factoriel Fractionnaire ?
+
+Un Plan Factoriel Fractionnaire ($2^{k-r}$) est un plan résultant de r fractionnements successifs d’un plan factoriel complet $2^k$ à partir de r générateurs. Ce type de plan permet de réduire le nombre d'essais de manière importante tout en gardant un plan de qualité. Ce plan ne permettra par contre pas d'estimer des modèles d'ordre aussi élevé que les plans factoriels complets. Certains termes du modèle complet seront confondus entre eux. Le choix des générateurs est donc directement lié à la complexité du modèle qui sera estimable.  
+
+## Plan factoriel fractionnaire - Version 1
+
+Le code ci-dessous permet de générer un plan factoriel frationnaire. Testez le puis répondez aux questions qui suivent. 
+
+```{r}
+Design=FrF2(nruns = 8,nfactors = 4,randomize=FALSE)
+design.info(Design)
+generators(Design)
+aliasprint(Design)
+DM=as.data.frame(desnum(Design))
+DM
+```
+
+* Combien d'essais comprend le plan ? combien de fois le plan complet a-t-il été fractionné ?  
+* Sur base du script ci-dessous, retrouvez quels sont le/les générateur(s) utilisé(s) pour fractionner le PFC.  
+* Vérifiez sur le plan généré que ce(s) générateur(s) sont bien vérifiés.  
+* Quels effets pouvons-nous estimer avec ce plan et quels effets sont confondus ?  
+
+Voici un code utile qui permet de trouver tous les alias :
+
+```{r}
+alldata=data.frame(y=1,desnum(Design))
+aliases(lm(y~(.)^3,data=alldata))
+#Representation des confusions entre les termes d'ordre 2 et ceux d'ordre 1
+corrPlot(Design, scale = "corr")
+```
+
+### Résolution du plan
+
+Sur base de votre réponse à la question précédante, quelle est la résolution du plan ?  
+
+### Etude de l'orthogonalité du plan
+
+* Ce plan est-il orthogonal pour l'estimation du modèle d'ordre 1  ?  
+* Et pour le modèle d'ordre 2 complet ?  
+
+```{r}
+# Check des matrices X'X
+# Modèle d'ordre 1
+X1=model.matrix(~A+B+C+D,DM)
+t(X1)%*%X1
+# Modèle d'ordre 2
+X2=model.matrix(~A+B+C+D+A:B+A:C+A:D+B:C+B:D+C:D,DM)
+X2
+t(X2)%*%X2
+```
+
+## Plan factoriel fractionnaire - Version 2
+
+Etudiez et exécutez le code ci-dessous, puis répondez aux questions qui suivent. 
+
+```{r}
+Design=FrF2(nruns = 8, nfactors = 4,generators = c("AB")) #specification du generateur a utiliser
+DM=as.data.frame(desnum(Design))
+DM
+#reponse: 
+design.info(Design)
+aliasprint(Design) 
+generators(Design)
+X=model.matrix(~A+B+C+D+A:B+A:C+A:D+B:C+B:D+C:D,Design)
+t(X)%*%X
+#Representation des confusions entre les termes d'ordre 2 et ceux d'ordre 1
+corrPlot(Design, scale = "corr")
+```
+
+* En regardant cet autre Plan Factoriel Fractionaire, qu'est-ce qui change par rapport au précédant ?  
+* Quelle est sa résolution et pourquoi ?  
+* Quel modèle peut être estimé avec ce plan ?  
+
+## Plan factoriel fractionnaire - Version 3
+
+Voici un code pour générer encore un plan factoriel frationnaire. Il y a ici 5 facteurs et on fractionne deux fois le plan $2^5$.  L'objectif que l'on poursuit est de trouver un plan qui permette d'estimer le modèle suivant :
+$$ Y = \beta_0 + \beta_1 A + \beta_2 B + \beta_3 C + \beta_4 D + \beta_5 E + \beta_6 A:B + \beta_7 A:C + \epsilon $$
+Etudiez le plan généré :
+
+* Quels sont les générateurs utilisés  
+* Quelles sont les confusions liées   
+* Dites si le plan répond à cet objectif  
+
+```{r}
+Design=FrF2(nruns = 8, nfactors=5)
+MD=as.data.frame(desnum(Design))
+MD
+
+#pour les alias : 
+alldata=data.frame(y=1,desnum(Design))
+aliases(lm(y~(.)^3,data=alldata))
+```
+
+### Version 3 bis 
+
+Voici un code qui permet d'imposer à R de pouvoir estimer un modèle partiel donné.  
+
+* Retrouvez les générateurs du plan généré  
+* Retrouvez alias liés à ce plan et vérifiez que les termes du modèle que l'on désire estimer ne sont pas confondus entre eux.  
+* Vérifiez aussi sur base de la matrice X'X que le plan généré permet bien d'estimer le modèle attendu de façon orthogonale.  
+
+```{r}
+Design=FrF2(8, nfactors=5, estimable = formula("~A+B+C+D+E+A:B+A:C"),clear=FALSE, res3=TRUE)
+XM=as.data.frame(desnum(Design))
+XM
+
+#pour les alias : 
+alldata=data.frame(y=1,desnum(Design))
+aliases(lm(y~(.)^3,data=alldata))
+```
+
+# Analyse par régression des résultats d'un plan factoriel Fractionaire  
+
+Ces analyses seront sur le même exemple que celui du PFC.  
+
+## Plan Factoriel Fractionaire (PFF)
+
+Pour le même problème que pour le PFC, on a réalisé un plan beaucoup moins coûteux :  
+
+* Sans répétition  
+* En fractionnant le plan à 16 essais en 8 essais uniquement à l'aide du générateur D=ABC (ou $Ts=Cs*Ps*Rs$)  
+
+L'objectif ici est de vérifier si on parvient à obtenir autant d'information qu'avec le plan à 32 essais.  
+
+### Téléchargement et visalisation des données
+
+Téléchargez à présent les données du fichier Excel `TP7_PFF.xlsx`.
+
+```{r}
+vaccinPFF <- read_excel("TP7_PFF.xlsx")
+pander(vaccinPFF)
+```
+
+### Estimation du modèle d'ordre 2 complet 
+
+Estimez un modèle `lm` d'ordre 2 (toutes les interactions 2 à 2) et visualisez le résumé du modèle.  
+
+* Que constatez-vous ? Vous attendiez-vous à ce problème  
+* Etudiez les alias et également la matrice X'X pour encore mieux comprendre.   
+
+```{r}
+
+```
+
+### Estimation d'un modèle simplifié
+
+Essayez maintenant d'estimer le modèle simplifié, en gardant uniquement les termes principaux et l'interaction la plus significative identifiée pour le plan complet.  
+
+* Comparez le tableau des coefficients de ce modèle et celui du modèle simplifié estimé pour le plan factoriel complet.  Sont-ils comparables ?  
+* Comparez également le graphe des effets principaux et d'interaction.  
+* Comparez les écarts-types des modèles avec le PFC et le PFF.  Pouvez-vous expliquer la différence entre les 2 ?  
+* En terme d'interprétation, à quoi correspond la valeur donneé dans le summary pour Cs ?  
+
+```{r}
+
+```
