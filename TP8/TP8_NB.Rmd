@@ -1,0 +1,663 @@
+---
+title: "TP8 : Plans pour surfaces de réponses" 
+author: "LBIR2222"
+date: '`r format(Sys.time(), "%B %d, %Y")`'
+output:
+  html_document: # options pour la mise en page des sortie HTML
+    smart: FALSE
+    code_folding: hide #  Cache le code  
+    collapsed: yes # Crée un document unique 
+    fig_caption: yes # Figures encapsulées ? 
+    fig_height: 5 # Hauteur par défaut des figures
+    fig_width: 8 # Largeur par défaut des figures
+    highlight: tango # Style de mise en valeur du code
+    number_sections: yes # Ajout table des matières 
+    theme: united  # Style du document
+    toc: yes # Table des matiere ?
+    toc_depth: 3  # Profondeur table des matières
+    toc_float: yes # Table des matières flottante
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include = FALSE}
+# Pour éviter que Rmd mette par défaut deux # au début de chaque ligne de code:
+knitr::opts_chunk$set(comment="") 
+# Packages
+require(FrF2)
+require(readxl)
+require(DoE.base)
+require(grid)
+require(conf.design)
+require(rsm)
+require(pander)
+require(plotly)
+require(ggplot2)
+require(patchwork)
+require(corrplot)
+require(car)
+require(emmeans)
+require(tidyverse)
+require(pander)
+require(scales)
+
+# si problem pour les graphes en 3D :
+# [Tools/Global Options.../Advanced] and choosing 'Desktop OpenGL' in Rendering engine
+
+# si problème pour vdg: 
+#install.packages("remotes")  # Si non installé
+#remotes::install_github("cran/vdg")  
+```
+
+# Importation de la fonction plotDesign
+
+La ligne de code ci-dessous vous permet d'importer la fonction plotDesign dans votre Rmarkdown. Cette fonction est utile pour pouvoir représenter graphiquement vos plans d'expérience.
+
+Attention, pour que cela marche, vous devez impérativement avoir téléchargé la fonction plotDesign sur Moodle et l'avoir chargée dans le même dossier que celui du Rmarkdown.
+
+```{r}
+# Importation de la fonction plotDesign
+# Vous devez telecharger la fonction plotDesign sur Moodle et la charger dans le meme dossier que celui de ce Rmd
+
+source("plotDesign.R") 
+```
+
+# Plan Factoriel Complet
+
+Nous souhaitons estimer les paramètres d'un modèle polynomial quadratique complet à l'aide d'un Plan Factoriel Complet.
+
+-   Combien de niveaux différents devrions-nous tester au minimum pour chaque facteur ?
+-   Combien d'essais comprendra le plan à 3 facteurs ? et à k facteurs ?
+-   Combien de paramètres comprend le modèle à estimer pour 3 facteurs et pour k facteurs ?
+-   Le code ci-dessous permet de générez ce plan à 3 facteurs en définissant les niveaux comme -1, 0 et 1.
+
+Réponse :
+
+-   Pour pouvoir estimer des effets quadratiques, il faut au minimum 3 valeurs par facteur.
+
+-   Dans un plan factoriel complet, toutes les combinaisons de chacun des niveaux des facteurs sont testées : $3^3 = 27$ essais. $3^k$ essais pour $k$ facteurs.
+
+-   Le modèle a 3 facteurs a 10 paramètres : terme constant, 3 termes principaux $X_i$, 3 termes quadratiques $X_i^2$, 3 termes d'interaction $X_i*X_j$. $1+k+k+k*(k-1)/2$ pour $k$ facteurs.
+
+```{r}
+# Generation du design du PFC
+PFC <- DoE.base::fac.design(nfactors = 3, factor.names=list(x1=c(-1,0,1),x2=c(-1,0,1),x3=c(-1,0,1)),randomize=FALSE)
+adfPFC <- as.data.frame(PFC) #transformation en dataframe
+
+# Representation du design en 2D
+plotDesign(adfPFC, x="x1", y="x2", cols = "x3", title = "Plan factoriel complet à 3 facteurs")
+
+# Representation du design en 3D
+plotly::plot_ly(adfPFC, x=~x1,y=~x2,z=~x3,type= "scatter3d", mode = "markers")%>% layout(title = "Plan factoriel complet à 3 facteurs")
+```
+
+# Génération d'un Plan Box & Behnken
+
+Le plan de Box & Behnken permet aussi d'estimer un modèle quadratique complet à un coût moindre que le plan factoriel complet.
+
+-   A l'aide du script ci-dessous, générez un plan Box-Behnken pour estimer un modèle quadratique à 3 facteurs.
+-   Justifiez graphiqment pourquoi il s'agit d'un Plan Box & Behnken.
+-   Combien d'essais y a-t-il au total ?
+
+Fraction d'un plan factoriel complet $3^k$ qui permet d'estimer un modèle quadratique. Il se construit en combinant de manière particulière un plan factoriel $2^{k-r}$ avec un plan de type "bloc balancé incomplet" dans le but d'obtenir un plan à 3 niveaux le plus rotatable possible qui évite les sommets du cube. Pour 3 facteurs et 1 point au centre, cela fait 13 essais.
+
+```{r }
+# Generation du design du PBB
+PBB <- rsm::bbd(k = 3, n0 = 1, randomize = F) #fonction specifique du package rsm pour les PBB
+adfPBB <- as.data.frame(PBB) #transformation en dataframe
+
+# Representation du design en 2D
+plotDesign(adfPBB, x="x1", y="x2", cols = "x3", title = "Plan Box & Behnken à 3 facteurs")
+
+# Representation du design en 3D
+plotly::plot_ly(adfPBB, x=~x1,y=~x2,z=~x3,type= "scatter3d", mode = "markers")%>% layout(title = "Plan Box & Behnken à 3 facteurs")
+```
+
+# Génération d'un Plan Composite Centré
+
+Voici comment générer des plans composites centrés. On va en générer un avec les points sur les faces du cube (alpha=1) et un rotatables (isovariance par rotation) pour 3 facteurs et un essai au centre.
+
+## Plan composite avec points sur face du cube :
+
+```{r }
+# Generation du design du PCC1
+PCC1 <- rsm::ccd(basis = 3, n0 = c(1,0), randomize = F, alpha = "faces") #fonction specifique du package rsm pour les PCC
+adfPCC1 <- as.data.frame(PCC1) #transformation en dataframe
+pander(adfPCC1)
+
+# Representation du design en 2D
+plotDesign(adfPCC1, x="x1", y="x2", cols = "x3", title = "Plan Composite Centré à k=3 et alpha = 1")
+
+# Representation du design en 3D
+plotly::plot_ly(adfPCC1, x=~x1,y=~x2,z=~x3,type= "scatter3d", mode = "markers") %>% layout(title = "Plan Composite Centré à k=3 et alpha = 1")
+```
+
+## Plan composite rotatable :
+
+```{r }
+# Generation du design du PCC2 -> alpha = sqrt^4(2^3)
+PCC2 <- rsm::ccd(basis = 3, n0 = c(1,0), randomize = F, alpha = "rotatable") #fonction specifique du package rsm pour les PCC
+adfPCC2 <- as.data.frame(PCC2) #transformation en dataframe
+pander(adfPCC2)
+
+# Representation du design en 2D
+plotDesign(adfPCC2, x="x1", y="x2", cols = "x3", title = "Plan Composite Centré à 3 facteurs et rotatable")
+
+# Representation du design en 3D
+plotly::plot_ly(adfPCC2, x=~x1,y=~x2,z=~x3, type= "scatter3d", mode = "markers") %>% layout(title = "Plan Composite Centré à 3 facteurs et rotatable")
+```
+
+# Comparaison des propriétés des 3 classes de plan
+
+## Nombre d'essais
+
+Quel plan comprend le moins d'essais ?
+
+C'est le plan de Box & Behnken : 13 essais contre 27 pour le plan factoriel complet et 15 pour les plans composites.
+
+## Précision et indépendance des paramètres
+
+Calculez la matrice $(X'X)^{-1}$ pour chacun des plans générés et comparez les en termes des écart-types des paramètres et des corrélations entre paramètres.
+
+-   Vous devez pour cela d'abord créer les matrices du modèle X pour chaque plan (standardisé pour que ce soit comparable)
+-   Ensuite vous calculez $(X'X)^{-1}$
+-   Puis vous comparez les écart-types et corrélations
+
+```{r}
+# Génération des matrices du modèle
+ModQuad=formula(~x1+x2+x3+I(x1^2)+I(x2^2)+I(x3^2)+x1:x2+x1:x3+x2:x3)
+
+# necessaire de convertir la dataframe en numeric pour le PFC. Les autres le sont deja
+adfPFC=apply(PFC,2,as.numeric) 
+adfPFC <- as.data.frame(adfPFC)
+
+# Matrices X (fct de formule a estimer et du plan d'experience)
+XPFC=model.matrix(ModQuad,data=adfPFC)
+XPBB=model.matrix(ModQuad,data=adfPBB)
+XPCC1=model.matrix(ModQuad,data=adfPCC1)
+XPCC2=model.matrix(ModQuad,data=adfPCC2)
+
+# Calcul des matrices de Variances-covariances (X'X)^-1
+MVCPFC=solve(t(XPFC)%*%XPFC)
+MVCPBB=solve(t(XPBB)%*%XPBB)
+MVCPCC1=solve(t(XPCC1)%*%XPCC1)
+MVCPCC2=solve(t(XPCC2)%*%XPCC2)
+
+# Comparaison des écart-types des paramètres
+dfse=cbind(PFC=sqrt(diag(MVCPFC)),PBB=sqrt(diag(MVCPBB)),PCC1=sqrt(diag(MVCPCC1)),PCC2=sqrt(diag(MVCPCC2)))
+pander(dfse)
+
+# Matrices des corrélations (attention on utilise la fonction corrPlot du package corrPlot et pas du package DoE.base)
+corrplot::corrplot(cov2cor(MVCPFC),main="Plan factoriel complet")
+corrplot::corrplot(cov2cor(MVCPBB),main="Plan de Box et Behnken")
+corrplot::corrplot(cov2cor(MVCPCC1),main="Plan CC Orthogonal")
+corrplot::corrplot(cov2cor(MVCPCC2),main="Plan CC Rotatable")
+```
+
+Le plan Box & Behnken est celui qui utilise le moins d'essais mais il est celui pour lequel les écarts-types des paramètres sont les plus grands. Le premier PCC est plus intéressant en terme d'orthogonalité (estimation des paramètres) mais moins intéressant que le PCC2 qui est rotatable et pour qui les écarts-types sont plus faibles de manière générale (meilleures qualités de prédiction).
+
+## Etude des variances de prédiction liées aux plans
+
+Sans considérer le PFC, quel plan a la meilleure variance de prédiction ?
+
+### Variances de prédiction avec contour plots
+
+Attention ces graphes ne regardent ce qui se passe que pour 2 variables en supposant que la troisième =0.
+
+```{r }
+PBB.df <- as.data.frame((PBB[,3:5]))
+### 
+par(mfrow=c(2,2))
+varfcn(adfPFC, ~SO(x1,x2,x3), contour=TRUE) #NB : SO(x1,x2,x3) = modele quadratique complet
+varfcn(PBB, ~SO(x1,x2,x3), contour=TRUE)
+varfcn(PCC1, ~SO(x1,x2,x3), contour=TRUE)
+varfcn(PCC2, ~SO(x1,x2,x3), contour=TRUE)
+par(mfrow=c(1,1))
+```
+
+On peut observer que le seul plan rotatable est le PCC2. Effectivement, lorsqu'un plan est rotatable, il produit des informations qui prédisent ŷ avec la même précision à tous les points équidistants de l'origine codée du plan.
+
+### Variances de prédiction directionnelles
+
+La fonction `varfcn()` génère des directions par défaut le long d'un axe, et sur une diagonale passant par un coin dans chaque dimension. Ainsi, le graphique produit montre comment la variance évolue le long de chacun de ces vecteurs, pour les distances fournies. Dans une conception rotative, ces courbes seront toutes les mêmes (car peu importe la direction dans laquelle on va, l'évolution de la variance devrait être la même).
+
+Le seul plan pour lequel c'est le cas est le PCC2. Il s'agit bien d'un plan rotatable comme mentionné précédamment. Nous pouvons également remarquer que le PBB semble avoir de bonnes propriétés proches de la rotatabilité également.
+
+```{r }
+par(mfrow=c(2,2))
+varfcn(adfPFC, ~SO(x1,x2,x3), contour=FALSE)
+varfcn(PBB, ~SO(x1,x2,x3), contour=FALSE)
+varfcn(PCC1, ~SO(x1,x2,x3), contour=FALSE)
+varfcn(PCC2, ~SO(x1,x2,x3), contour=FALSE)
+par(mfrow=c(1,1))
+```
+
+# Surface de réponse - Blanchiment du papier
+
+## Contexte
+
+Le blanchiment du papier est le traitement chimique de la pâte de bois ou du papier recyclé dans le but d'éclaircir sa couleur et de blanchir la pâte, produisant ainsi un papier à la blancheur adaptée à l'usage final du papier. De nos jours, ce procédé est toujours en évolution suite aux efforts pour minimiser son impact environnemental et pour réduire sa dépendance à la chlorine.
+
+## Etude du plan expérimental
+
+-   Importez le fichier `TP8_test.csv`
+
+-   Représentez le plan graphiquement et/ou sous forme de tableau
+
+-   Quels sont les facteurs testés dans l'expérience ? Sont-ils quantitatifs ou qualitatifs ?
+
+-   Quel est le type de plan d'expérience ?
+
+```{r}
+# Importation des donnees
+mydata <- read.csv("TP8_test.csv")
+mydata$TypAlka <- as.factor(mydata$TypAlka) #specifie que TypAlka est un facteur qualitatif
+
+# Representation du design en 2D
+plotDesign(as.data.frame(mydata[,1:3]),x="QtH2O2",y="QtAlka",cols="TypAlka")
+
+# NB : version autre que PlotDesign
+as.data.frame(mydata[,1:3]) |> 
+    count(QtH2O2, QtAlka, TypAlka ) |> 
+    ggplot(aes(QtH2O2, QtAlka)) +
+    geom_text(aes(label = n)) +
+    facet_wrap(~TypAlka) +
+    labs(caption = "Nombre d'observations par combinaison de niveaux des facteurs")
+
+# Representation du design en 3D
+plotly::plot_ly(mydata, x=~QtH2O2,y=~QtAlka,z=~TypAlka, type= "scatter3d", mode = "markers") %>% layout(title = "Blanchiment de papier")%>% add_markers(color=~TypAlka)
+```
+
+Les facteurs testés sont les suivants :
+
+-   *QtH202* : facteur quantitatif - la quantité de H2O2
+-   *QtAlka* : facteur quantitatif - la quantité d'alcali
+-   *TypAlka* : facteur qualitatif - le type d'alcali
+
+Le plan est un plan factoriel complet 3x3x3 avec le point central qui a été répété trois fois pour chaque type d'Alcali.
+
+## Représentation graphique des réponses
+
+-   Sur base du script suivant, que pouvez-vous dire de l'effet des différents facteurs sur la Brightness (blancheur) ?
+
+```{r}
+ggplot(data = mydata, aes(x = QtH2O2, y = Brightness, colour=factor(QtAlka))) +
+  geom_point() +  
+  theme_bw()+ labs(color = "QtAlka") +
+  geom_smooth(se = FALSE, method = lm, formula = y ~ poly(x, 2),linewidth=0.5) +
+  facet_wrap( ~ TypAlka)   
+
+```
+
+-   Le NaOH est l'alcali qui donne la meilleure blancheur quelque soient les valeurs des quantités d'Alcali et de H2O2
+
+-   Au niveau des effets des quantités d'Alcali et de H2O2, nous pouvons constater qu'il semble y avoir une interaction entre ces deux facteurs. Celle-ci semble avoir un effet similaire pour les trois TypAlka.
+
+## Modélisation
+
+### Standardisation des données
+
+-   Nous avons vu au TP précédant qu'il était intéressant de travailler avec des données standardisées. Voici un script qui permet de standardiser les données.
+
+Ajout des colonnes:
+
+```{r}
+# Standardisation de QtH202
+milieuQtH2O2=(max(mydata$QtH2O2)+min(mydata$QtH2O2))/2
+etendueQtH2O2=(max(mydata$QtH2O2)-min(mydata$QtH2O2))/2
+mydata$QtH2O2s <- (mydata$QtH2O2-milieuQtH2O2)/etendueQtH2O2
+
+# Standardisation de QtAlka
+milieuQtAlka=(max(mydata$QtAlka)+min(mydata$QtAlka))/2
+etendueQtAlka=(max(mydata$QtAlka)-min(mydata$QtAlka))/2
+mydata$QtAlkas <- (mydata$QtAlka-milieuQtAlka)/etendueQtAlka
+
+# NB: il est aussi possible d'utiliser des fonctions toutes faites, comme : 
+# round(rescale(mydata$QtAlka, to = c(-1, 1)),2) #mais attention de toujours vérifier # ce qui est fait par la fonction.
+
+pander(mydata)
+```
+
+### Estimation du modèle
+
+-   Estimez maintenant votre modèle quadratique complet (interactions + termes quadratiques). Faudra-t-il utiliser `lm` ou `lmer` ?
+
+-   Notez aussi que dans les plans multifacteurs, il est d'usage de coder les facteurs catégoriels autrement qu'en choisissant le premier niveau comme niveau de référence. Il est conseillé d'utiliser l'option 'contrasts = list(TypAlka = "contr.sum")'. Avec ce codage, le niveau de référence doit être considéré comme un Alcali moyen fictif.
+
+-   Utilisez la fonction `model.matrix` pour voir comment ce codage est réalisé
+
+-   Réalisez une Anova pour voir quels effets sont significatifs
+
+*Réponse*
+
+-   Nous utilisons la fonction `lm` car celle-ci est adaptée aux modèles linéaires à facteurs fixes, sans effets aléatoires. Effectivement, le seul facteur qui aurait pu être traité en aléatoire est le facteur *TypAlka* (les autres étant quantitatifs). Comme nous nous intéressons à 3 types d'alcali bien définis (et ne souhaitons pas étudier l'effet des autres facteurs sur n'importe quel type d'alcali), nous traiterons ce facteur comme fixe.
+
+Estimation du modèle:
+
+```{r}
+# Estimation du modele
+mod_sd <- lm(Brightness ~ QtH2O2s * QtAlkas   + TypAlka + QtH2O2s:TypAlka + QtAlkas:TypAlka + I(QtH2O2s^2)  + I(QtAlkas^2), data = mydata, contrasts = list(TypAlka = "contr.sum"))
+summary(mod_sd)
+
+# On utilise la fonction Anova (de type III) du package car
+car::Anova(mod_sd, type="III")
+```
+
+### Simplification du modèle
+
+Sur base des résultats de l'ANOVA, pouvez-vous supprimer des termes/effets dans votre modèle ? Si oui, mettez à jour votre modèle (pour un $\alpha = 0.01$).
+
+Sur base des résultats de l'ANOVA, nous constatons que les interactions entre QtH2O2s:TypAlka et QtAlkas:TypAlka ne sont pas significatives. Nous pouvons les enlever du modèle :
+
+```{r}
+# Estimation du modele
+mod_sd <- lm(Brightness ~ QtH2O2s * QtAlkas   + TypAlka + I(QtH2O2s^2)  + I(QtAlkas^2), data = mydata, contrasts = list(TypAlka = "contr.sum"))
+summary(mod_sd)
+# On utilise la fonction Anova (de type III) du package car
+car::Anova(mod_sd, type="III")
+
+```
+
+### Analyse des résidus
+
+Analysez les résidus de votre modèle. Respectent-ils les hypothèses du modèle ?
+
+```{r}
+par(mfrow = c(2,2))
+plot(mod_sd)
+par(mfrow = c(1,1))
+```
+
+Les hypothèses semblent bien respectées.
+
+### Comparaison des alcalis
+
+Sur base de votre modèle, quel type d'alcali semble le plus intéressant à utiliser pour avoir une Brightness maximale ? Les différences de Brightness par rapport aux autres alkalis sont-elles significativement différentes ?
+
+L'alcali NaOH obtient une Brightness significativement supérieure aux deux autres alcali.
+
+```{r}
+pairs(emmeans(mod_sd,~TypAlka)) 
+```
+
+## Analyses avec le package `rsm`
+
+Pour continuer la suite des analyses nous utiliserons un autre package, il s'agit du package `rsm`. Sur base du script réalisé ci-dessous, quelles sont les analyses supplémentaires réalisées avec la fonction `rsm`? Observez-vous des différences avec les résultats de votre modèle précédant ?
+
+Estimation du modèle:
+
+```{r}
+### Methode rsm
+# SO : Second Order model
+res.model2 <- rsm(Brightness ~  SO(QtH2O2s, QtAlkas) + TypAlka, data = mydata, contrast=list(TypAlka= "contr.sum"))
+summary(res.model2)
+
+# Anova de type III
+car::Anova(res.model2, type="III")
+```
+
+Les résultats du summary sont équivalents (les effets quadratiques sont regroupés sous "PQ()"; les effets d'ordre 1 sous"FO()" et l'effet d'interaction sous "TWI()"). Un test supplémentaire est réalisé, il s'agit du test de *Lack of Fit*. Celui-ci test les hypothèses suivantes :
+
+\-$H_0 :$ il n'y a pas de problème d'ajustement du modèle par rapport aux mesures réelles\
+-$H_1 :$ il y a un problème d'ajustement du modèle par rapport aux mesures réelles
+
+NB : Le test de Lack of Fit nécessite d'avoir des répétitions au centre de notre plan d'expérience. Cela permet de calculer la 'Pure error' et de la comparer à l'erreur résiduelle.
+
+### Voici une manière de représenter les courbes d'iso-réponses par type d'alcali
+
+* Sur base de ces figures, identifiez (graphiquement) des valeurs de type d'alcali, QtH2O2s et QtAlkas qui permettraient d'obtenir une Brigntness proche de 77,5 (plusieurs réponses possibles). Calculez aussi l'intervalle de prédictions.  
+
+* Sur base de votre choix, calculez les valeurs de Brightness prédites et leur intervalle de prediction.  
+
+* Retransformez ces valeurs en valeurs réelles.  
+
+* Réfléchissez à une manière de trouver les valeurs optimales à l'aide d'un code (cfr. exercice "code analyse surface de réponse" sur Moodle).   
+
+#### Représentation des courbes d'iso-réponses par type d'alcali
+
+```{r}
+### Visualisation des courbes de Brightness en fonction du modèle
+par (mfrow = c(1,3))
+for (i in c("CaO","MgO","NaOH")){
+  contour.lm(res.model2, ~ QtH2O2s * QtAlkas + I(QtH2O2s^2)  + I(QtAlkas^2)  , image = T, at = list(TypAlka=i), main = i)
+}
+```
+
+#### Identification graphique (Option 1)
+
+```{r}
+### Option 1. Répondre à la question de manière graphique
+
+## 1. valeurs trouvées graphiquement
+H202_opts = -0.85
+alka_opts = 0.5 
+predictxy <- data.frame("QtH2O2s" = c(H202_opts),
+                        "QtAlkas" = c(alka_opts), 
+                        "TypAlka" = "NaOH") 
+## 2. modèle linéaire (possibilité de réutiliser celui plus haut directement)
+mod_sd <- lm(Brightness ~ QtH2O2s * QtAlkas + I(QtH2O2s^2)  + I(QtAlkas^2) + TypAlka, data = mydata, contrasts = list(TypAlka = "contr.sum"))
+
+## 3. prédiction des valeurs et de l'intervale de prédiction sur les predictions
+res_predict <- predict(mod_sd,newdata = predictxy, interval = 'prediction')
+pander(cbind(predictxy, res_predict))
+
+## 4. transformation en valeurs réelles
+H202_opt <- H202_opts*(max(mydata$QtH2O2)-min(mydata$QtH2O2))/2 + mean(mydata$QtH2O2)
+alka_opt <- alka_opts*(max(mydata$QtAlka)-min(mydata$QtAlka))/2 + mean(mydata$QtAlka)
+pander(cbind(H202_opt,alka_opt,res_predict))
+
+# 5. Remontrer où se trouve le point choisi
+contour.lm(res.model2, ~ QtH2O2s * QtAlkas + I(QtH2O2s^2)  + I(QtAlkas^2)  , image = T, at = list(TypAlka="NaOH"), main = "NaOH")
+points(predictxy,col="red", pch=16)
+```
+
+#### Identification sur base de critères par slicing (Option 2) 
+
+```{r}
+### Option 2. Sélectionner les valeurs de QtH2O2s et QtAlkas qui donnent des Brightness de 77.5 +- 3 et qui minimisent les quantité de QtH2O2s et QtAlkas nécessaires
+
+# 1. Créer une grille de valeurs pour QtH2O2s et QtAlkas
+# (On explore l'espace des paramètres avec une résolution fine)
+grid <- expand.grid(
+  QtH2O2s = seq(min(mydata$QtH2O2s), max(mydata$QtH2O2s), length.out = 100),
+  QtAlkas = seq(min(mydata$QtAlkas), max(mydata$QtAlkas), length.out = 100),
+  TypAlka = levels(mydata$TypAlka)  # Tous les types d'alcali (CaO, MgO, NaOH)
+)
+
+# 2. Prédire la Brightness pour chaque combinaison de la grille
+# (On utilise le modèle existant pour estimer la réponse)
+grid$predicted_Brightness <- predict(res.model2, newdata = grid, interval="prediction")
+
+# 3. Transformer la grille en format "long" pour faciliter le filtrage (pas obligé)
+grid_long <- pivot_longer(
+  grid,
+  cols = c("predicted_Brightness"),
+  values_to = "predicted_value",
+  names_to = "response"
+)
+
+# 4. Filtrer les points où la Brightness est proche de 77.5 (±0.3)
+grid_temp <- mutate(
+  grid_long,
+  okay = case_when(
+    (response == "predicted_Brightness") & (predicted_value[, "fit"] >= 77.2) & (predicted_value[, "fit"] <= 77.8) ~ TRUE,
+    TRUE ~ FALSE
+  )
+)
+grid_filtered <- filter(grid_temp, okay)
+
+# 5. Choisir un point qui minimise QtAlkas et QtH2O2s
+solutions_min_both <- grid_filtered %>%
+    group_by(TypAlka) %>%
+    slice_min(QtAlkas + QtH2O2s, n = 1) %>% # Minimise la somme des réactifs
+    slice_max(predicted_value[,"fit"], n = 1) # Parmis ces solutions, prends la Brightness max
+solutions_min_both
+
+chosen_point <- solutions_min_both %>%
+    select(QtH2O2s, QtAlkas,TypAlka)
+
+# 6. Visualiser les zones optimales pour chaque type d'alcali
+p2 <- ggplot() +
+    # Courbes de niveau (une par type d'alcali)
+    geom_contour(
+        data = grid,
+        aes(x = QtH2O2s, y = QtAlkas, z = predicted_Brightness[,"fit"], color = after_scale(colour)),
+        bins = 10  # Nombre de courbes
+    ) +
+    # Tous les Points qui vérifient notre critère (filtrés précédemment)
+    geom_point(
+        data = grid_filtered,
+        aes(x = QtH2O2s, y = QtAlkas, color = TypAlka),
+        alpha = 0.3
+    ) +
+    # Les Points choisis (rouge)
+    geom_point(
+        data = chosen_point,
+        aes(x = QtH2O2s, y = QtAlkas),
+        color = "red",
+        size = 3
+    ) +
+    
+    # Mise en forme
+    facet_wrap(~ TypAlka) +
+    labs(
+        title = "Zones optimales 77.2 ≤ Brightness ≤ 77.8",
+        x = "QtH2O2s",
+        y = "QtAlkas"
+    ) +
+    theme_minimal()
+
+p2
+
+## 7. Calcul des valeurs réelles et intervalles
+
+# on a vu que NaOH était le meilleur des Alkalis
+solutions <- solutions_min_both %>%
+    filter(TypAlka=="NaOH") 
+
+## transformation en valeurs réelles
+H202_opt_2 <- solutions$QtH2O2s*(max(mydata$QtH2O2)-min(mydata$QtH2O2))/2 + mean(mydata$QtH2O2)
+alka_opt_2 <- solutions$QtAlkas*(max(mydata$QtAlka)-min(mydata$QtAlka))/2 + mean(mydata$QtAlka)
+pander(cbind(H202_opt_2,alka_opt_2, solutions$predicted_value))
+```
+
+#### Identification sur base de critères via les fonctions de désirabilité (Option 3) 
+
+```{r}
+### Option 3. Version desirabilité
+
+# Fonction de désirabilité
+desirability <- function(Brightness, QtAlkas, QtH2O2s) {
+  # Désirabilité pour Brightness
+  # Objectif : atteindre une valeur cible de 77.5
+  # Zone acceptable : [77.3 ; 77.8]
+  # La désirabilité vaut :
+  # - 0 en dehors de cette zone
+  # - augmente progressivement jusqu’à 1 quand on s’approche de 77.5
+  # - forme quadratique (pénalise plus fortement les écarts)
+  
+  d_Brightness <- case_when(
+    Brightness < 77.3 ~ 0, 
+    Brightness <= 77.5 ~ ((Brightness - 77.3) / 0.5)^2, 
+    Brightness <= 77.8 ~ ((77.8 - Brightness) / 0.5)^2, 
+    TRUE ~ 0 
+  )
+  # Désirabilité QtAlkas et QtH202s (minimisation)
+  # → plus QtAlkas est petit, plus la désirabilité est grande
+  # → normalisation entre 0 (pire) et 1 (meilleur), puis pénalisation quadratique
+  
+  # Désirabilité QtAlkas (minimisation)
+  d_QtAlkas <- ((max(mydata$QtAlkas) - QtAlkas) / (max(mydata$QtAlkas) - min(mydata$QtAlkas)))^2
+
+  # Désirabilité QtH2O2s (minimisation)
+  d_QtH2O2s <- ((max(mydata$QtH2O2s) - QtH2O2s) / (max(mydata$QtH2O2s) - min(mydata$QtH2O2s)))^2
+
+  # Moyenne géométrique
+  # → combine les critères
+  # → si un seul critère est mauvais (≈0), la désirabilité globale devient faible
+  # → impose un bon compromis entre toutes les réponses
+  D <- (d_Brightness * d_QtAlkas * d_QtH2O2s)^(1/3)
+  return(D)
+}
+
+# 1. Créer une grille de valeurs
+grid <- expand.grid(
+  QtH2O2s = seq(min(mydata$QtH2O2s), max(mydata$QtH2O2s), length.out = 100),
+  QtAlkas = seq(min(mydata$QtAlkas), max(mydata$QtAlkas), length.out = 100),
+  TypAlka = levels(mydata$TypAlka)
+)
+
+# 2. Prédire Brightness et calculer la désirabilité
+grid$predicted_Brightness <- predict(res.model2, newdata = grid, interval = "prediction")
+grid$desirability <- mapply(desirability, grid$predicted_Brightness[,"fit"], grid$QtAlkas, grid$QtH2O2s)
+
+# 3. Trouver le point optimal pour chaque TypAlka
+optimal_points <- grid %>%
+  group_by(TypAlka) %>%
+  slice_max(desirability, n = 1) %>%  # Garde le point avec la désirabilité maximale
+  ungroup()
+
+# 4. Visualisation
+p3 <- ggplot() +
+
+    # Courbes de Brightness (en gris)
+    geom_contour(
+        data = grid,
+        aes(x = QtH2O2s, y = QtAlkas, z = predicted_Brightness[,"fit"]),
+        breaks = seq(77, 78, by = 0.5),  # Valeurs clés : 77, 77.5, 78
+        color = "gray50",
+        linetype = "dashed"
+    ) +
+    # Points optimaux (avec valeur de Brightness)+
+    geom_point(
+        data = optimal_points,
+        aes(x = QtH2O2s, y = QtAlkas, fill = TypAlka),
+        color = "black",
+        shape = 21,
+        size = 4
+    ) +
+    geom_text(
+        data = optimal_points,
+        aes(
+            x = QtH2O2s,
+            y = QtAlkas,
+            label = paste("B =", round(predicted_Brightness[,"fit"], 2))
+        ),
+        vjust = -1.5,  # Décalage vers le haut
+        size = 3.5,
+        color = "black"
+    ) +
+    # Mise en forme
+    facet_wrap(~ TypAlka) +
+    labs(
+        title = "Optimisation multi-objectifs",
+        x = "QtH2O2s (codé)",
+        y = "QtAlkas (codé)",
+        fill = "Type d'alcali"
+    ) +
+    theme_minimal()
+p3
+
+## 7. Calcul des valeurs réelles et intervalles
+
+solutions_3 <- optimal_points %>%
+    filter(TypAlka=="NaOH") 
+
+## transformation en valeurs réelles
+H202_opt_3 <- solutions_3$QtH2O2s*(max(mydata$QtH2O2)-min(mydata$QtH2O2))/2 + mean(mydata$QtH2O2)
+alka_opt_3 <- solutions_3$QtAlkas*(max(mydata$QtAlka)-min(mydata$QtAlka))/2 + mean(mydata$QtAlka)
+pander(cbind(H202_opt_3,alka_opt_3, solutions_3$predicted_Brightness))
+```
+
+
+#### Comparaison des résultats avec les trois options    
+
+```{r}
+comparaison <- rbind(
+  cbind(H202_opt, alka_opt, res_predict),
+  cbind(H202_opt_2, alka_opt_2, solutions$predicted_value),
+  cbind(H202_opt_3, alka_opt_3, solutions_3$predicted_Brightness)
+)
+rownames(comparaison) <- c("Option 1", "Option 2", "Option 3")
+pander(comparaison)
+```

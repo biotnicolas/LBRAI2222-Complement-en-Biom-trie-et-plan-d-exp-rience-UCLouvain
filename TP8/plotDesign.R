@@ -1,0 +1,169 @@
+#' @export plotDesign
+#' @title Plot of the design matrix
+#'
+#' @description
+#' Provides a graphical representation of the experimental design for up to 4 factors. It allows to visualize factors levels and check the balancing of the design.
+#'
+#' @param design A nxk "free encoded" experimental design data frame.
+#' @param x By default: the first column of `design`. If not `NULL`, a character string giving the column name of `design` to be used for the x axis.
+#' @param y By default: the second column of `design`. If not `NULL`, a character string giving the column name of `design` to be used for the y axis.
+#' @param cols By default: the third column of `design` if present. If not `NULL`, a character vector with one or several column name(s) of `design` to be used for faceting along the columns.
+#' @param rows By default: the fourth column of `design` if present. If not `NULL`, a character vector with one or several column name(s) of `design` to be used for faceting along the rows.
+#' @param title Plot title.
+#' @param theme ggplot theme, see `?ggtheme` for more info.
+#'
+#' @return A plot of the design (ggplot).
+#'
+#' @examples
+#'
+#' ### mtcars
+#' data(mtcars)
+#' library(tidyverse)
+#' df <-  mtcars %>%
+#'   dplyr::select(cyl, vs, am, gear, carb) %>%
+#'   as.data.frame() %>%
+#'   dplyr::mutate(across(everything(), as.factor))
+#'
+#' # 2 factors
+#' plotDesign(design = df, x = "cyl", y = "vs",
+#'           cols = NULL, rows = NULL)
+#' # 3 factors
+#' plotDesign(design = df, x = "cyl", y = "vs",
+#'           cols = NULL, rows = c("am"))
+#' # 4 factors
+#' plotDesign(design = df, x = "cyl", y = "vs",
+#'           cols = c("gear"), rows = c("am"))
+#' # 5 factors
+#' plotDesign(design = df, x = "cyl", y = "vs",
+#'           cols = c("gear"), rows = c("am","carb"))
+#'
+#' plotDesign(design = df, x = "cyl", y = "vs",
+#'           cols = c("vs"), rows = c("am","carb"))
+#'
+#' ### UCH
+#' data("UCH")
+#' plotDesign(design = UCH$design, x = "Hippurate", y = "Citrate", rows = "Day")
+#'
+#' @import ggplot2
+#' @import dplyr
+#' @import tidyverse
+
+plotDesign <- function(design, x = NULL, y = NULL, rows = NULL, cols = NULL,
+                       title = "Plot of the design", theme = theme_bw())
+{
+  
+  # Create checkArg function
+  
+  #' @importFrom plyr is.formula
+  
+  checkArg = function(arg, checks, can.be.null = FALSE){
+    check.list <- list(bool = c(is.logical, "a boolean"),
+                       int = c(function(x) identical(as.numeric(x),round(as.numeric(x))), "an integer"),
+                       num = c(is.numeric, "a numeric"),
+                       str = c(is.character, "a character string"),
+                       pos = c(function(x) {min(x)>0}, "positive"),
+                       pos0 = c(function(x) {min(x) >= 0}, "positive or zero"),
+                       formula = c(plyr::is.formula,"a formula"),
+                       data.frame = c(is.data.frame,"a dataframe"),
+                       matrix = c(is.matrix,"a matrix"),
+                       list = c(is.list,"a list"),
+                       length1 = c(function(x) {length(x) == 1}, "of length 1"))
+    
+    if (is.null(arg))  {
+      if (!can.be.null)  {
+        stop(deparse(substitute(arg)), " is null.")
+      }
+    } else  {
+      for (c in checks) {
+        if (!check.list[[c]][[1]](arg)) {
+          stop(deparse(substitute(arg)), " is not ", check.list[[c]][[2]],".")
+        }
+      }
+    }
+  }
+  # checks arguments ===================
+  
+  checkArg(design,"data.frame",can.be.null = FALSE)
+  checkArg(x,c("str","length1"),can.be.null = TRUE)
+  checkArg(y,c("str","length1"),can.be.null = TRUE)
+  checkArg(rows,c("str"),can.be.null = TRUE)
+  checkArg(cols,c("str"),can.be.null = TRUE)
+  checkArg(title,c("str","length1"),can.be.null = TRUE)
+  
+  # initialize x, y, rows, cols
+  
+  if (is.null(x)&is.null(y)) xynull=TRUE else xynull=FALSE
+  
+  if(length(colnames(design))==1)  design=cbind(design,count="n")
+  
+  if (!is.null(x)){
+    x <- match.arg(x, choices = colnames(design))
+  } else{
+    x <- colnames(design)[1]
+  }
+  
+  if (!is.null(y)){
+    y <- match.arg(y, choices = colnames(design))
+  } else{
+    y <- colnames(design)[2]
+  }
+  
+  if (!is.null(cols)){
+    if (!all(cols %in% colnames(design))){
+      stop(paste0("cols (",paste0(cols, collapse = ", "),
+                  ") is not matching column names of design: ",
+                  paste0(colnames(design), collapse = ", ")))
+    }
+  } else{
+    cn <- colnames(design)[3]
+    if(xynull &ncol(design)>2 & ! cn %in% c(rows,x,y)){cols = colnames(design)[3]}
+  }
+  
+  if (!is.null(rows)){
+    if (!all(rows %in% colnames(design))){
+      stop(paste0("rows (",paste0(rows, collapse = ", "),
+                  ") is not matching column names of design: ",
+                  paste0(colnames(design), collapse = ", ")))
+    }
+  } else{
+    cn <- colnames(design)[4]
+    if(xynull & ncol(design)>3& ! cn %in% c(cols,x,y)){rows = colnames(design)[4]}
+  }
+  
+  # Calculate replicates by design point ===================
+  
+  df_count <- design %>%
+    dplyr::count(dplyr::across(dplyr::all_of(c(x,y,rows,cols))))
+  
+  # prepare plot ===================
+  
+  p <- ggplot2::ggplot(df_count, ggplot2::aes_string(x = x, y = y)) 
+  
+  if (is.null(rows)){
+    rows="."
+  } else{rows = paste0(rows, collapse = "+")}
+  
+  if (is.null(cols)){
+    cols="."
+  } else{cols = paste0(cols, collapse = "+")}
+  
+  form <- paste0(rows,"~",cols)
+  
+  p <- p +  ggplot2::geom_text(aes_string(label = "n"))
+  
+  if(is.numeric(df_count[,y]))
+  {cat("\n y numeric")
+    maxy=max(df_count[,y])
+    miny=min(df_count[,y])
+    delta=(maxy-miny)/10
+    p <- p + ylim(miny-delta,maxy+delta)} 
+  
+  if (!is.null(rows) | !is.null(cols)){
+    p <- p + ggplot2::facet_grid(as.formula(form),
+                                 labeller = label_both)}
+  
+  p <- p + ggplot2::ggtitle(title) + theme
+  
+  return(p)
+  
+}

@@ -1,0 +1,363 @@
+---
+title: "TP8 : Plans pour surfaces de reponses" 
+author: "LBRAI2222"
+date: '`r format(Sys.time(), "%B %d, %Y")`'
+output:
+  html_document: # options pour la mise en page des sortie HTML
+    smart: FALSE
+    code_folding: hide #  Cache le code  
+    collapsed: yes # Crée un document unique 
+    fig_caption: yes # Figures encapsulées ? 
+    fig_height: 5 # Hauteur par défaut des figures
+    fig_width: 8 # Largeur par défaut des figures
+    highlight: tango # Style de mise en valeur du code
+    number_sections: yes # Ajout table des matières 
+    theme: united  # Style du document
+    toc: yes # Table des matiere ?
+    toc_depth: 3  # Profondeur table des matières
+    toc_float: yes # Table des matières flottante
+editor_options: 
+  chunk_output_type: console
+---
+  
+```{r setup, include = FALSE}
+# Pour éviter que Rmd mette par défaut deux # au début de chaque ligne de code:
+knitr::opts_chunk$set(comment="") 
+# Packages
+require(FrF2)
+require(readxl)
+require(DoE.base)
+require(grid)
+require(conf.design)
+require(rsm)
+require(pander)
+require(plotly)
+require(ggplot2)
+require(patchwork)
+require(corrplot)
+require(car)
+require(emmeans)
+require(tidyverse)
+require(pander)
+require(scales)
+
+# si problem pour les graphes en 3D :
+# [Tools/Global Options.../Advanced] and choosing 'Desktop OpenGL' in Rendering engine
+
+# si problème pour vdg: 
+#install.packages("remotes")  # Si non installé
+#remotes::install_github("cran/vdg")
+```
+
+# Importation de la fonction plotDesign   
+
+La ligne de code ci-dessous vous permet d'importer la fonction plotDesign dans votre Rmarkdown. Cette fonction est utile pour pouvoir représenter graphiquement vos plans d'expérience.  
+
+Attention, pour que cela marche, vous devez impérativement avoir téléchargé la fonction plotDesign sur Moodle et l'avoir chargée dans le même dossier que celui du Rmarkdown.  
+
+```{r}
+# Importation de la fonction plotDesign
+# Vous devez telecharger la fonction plotDesign sur Moodle et la charger dans le meme dossier que celui de ce Rmd
+
+source("plotDesign.R") 
+```
+
+# Plan Factoriel Complet  
+
+Nous souhaitons estimer les paramètres d'un modèle polynomial quadratique complet à l'aide d'un Plan Factoriel Complet. 
+
+* Combien de niveaux différents devrions-nous tester au minimum pour chaque facteur ? 
+* Combien d'essais comprendra le plan à 3 facteurs ? et à k facteurs ? 
+* Combien de paramètres comprend le modèle à estimer pour 3 facteurs et pour k facteurs ?
+* Le code ci-dessous permet de générez ce plan.   
+
+
+```{r}
+# Generation du design du PFC
+PFC <- DoE.base::fac.design(nfactors = 3, factor.names=list(x1=c(-1,0,1),x2=c(-1,0,1),x3=c(-1,0,1)),randomize=FALSE)
+adfPFC <- as.data.frame(PFC) #transformation en dataframe
+
+# Representation du design en 2D
+plotDesign(adfPFC, x="x1", y="x2", cols = "x3", title = "Plan factoriel complet à 3 facteurs")
+
+# Representation du design en 3D
+plotly::plot_ly(adfPFC, x=~x1,y=~x2,z=~x3,type= "scatter3d", mode = "markers")%>% layout(title = "Plan factoriel complet à 3 facteurs")
+```
+
+# Génération d'un Plan Box & Behnken 
+
+Le plan de Box & Behnken permet aussi d'estimer un modèle quadratique complet à un coût moindre que le plan factoriel complet.
+
+* A l'aide du script ci-dessous, générez un plan Box-Behnken pour estimer un modèle quadratique à 3 facteurs. 
+* Justifiez graphiqment pourquoi il s'agit d'un Plan Box & Behnken. 
+* Combien d'essais y a-t-il au total ?   
+
+
+```{r }
+# Generation du design du PBB
+PBB <- rsm::bbd(k = 3, n0 = 1, randomize = F) #fonction specifique du package rsm pour les PBB
+adfPBB <- as.data.frame(PBB) #transformation en dataframe
+
+# Representation du design en 2D
+plotDesign(adfPBB, x="x1", y="x2", cols = "x3", title = "Plan Box & Behnken à 3 facteurs")
+
+# Representation du design en 3D
+plotly::plot_ly(adfPBB, x=~x1,y=~x2,z=~x3,type= "scatter3d", mode = "markers")%>% layout(title = "Plan Box & Behnken à 3 facteurs")
+```
+
+# Génération d'un Plan Composite Centré
+
+Voici comment générer des plans composites centrés.  On va en générer un avec les points sur les faces du cube (alpha=1) et un rotatables (isovariance par rotation) pour 3 facteurs et un essai au centre.  
+
+## Plan composite avec points sur face du cube :  
+
+
+```{r }
+# Generation du design du PCC1
+PCC1 <- rsm::ccd(basis = 3, n0 = c(1,0), randomize = F, alpha = "faces") #fonction specifique du package rsm pour les PCC
+adfPCC1 <- as.data.frame(PCC1) #transformation en dataframe
+pander(adfPCC1)
+
+# Representation du design en 2D
+plotDesign(adfPCC1, x="x1", y="x2", cols = "x3", title = "Plan Composite Centré à k=3 et alpha = 1")
+
+# Representation du design en 3D
+plotly::plot_ly(adfPCC1, x=~x1,y=~x2,z=~x3,type= "scatter3d", mode = "markers") %>% layout(title = "Plan Composite Centré à k=3 et alpha = 1")
+```
+  
+## Plan composite rotatable :  
+
+```{r }
+# Generation du design du PCC2 -> alpha = sqrt^4(2^3)
+PCC2 <- rsm::ccd(basis = 3, n0 = c(1,0), randomize = F, alpha = "rotatable") #fonction specifique du package rsm pour les PCC
+adfPCC2 <- as.data.frame(PCC2) #transformation en dataframe
+pander(adfPCC2)
+
+# Representation du design en 2D
+plotDesign(adfPCC2, x="x1", y="x2", cols = "x3", title = "Plan Composite Centré à 3 facteurs et rotatable")
+
+# Representation du design en 3D
+plotly::plot_ly(adfPCC2, x=~x1,y=~x2,z=~x3, type= "scatter3d", mode = "markers") %>% layout(title = "Plan Composite Centré à 3 facteurs et rotatable")
+```
+
+# Comparaison des propriétés des 3 classes de plan  
+
+## Nombre d'essais  
+
+Quel plan comprend le moins d'essais ?  
+
+## Précision et indépendance des paramètres
+
+Calculez la matrice $(X'X)^{-1}$ pour chacun des plans générés et comparez les en termes des écart-types des paramètres et des corrélations entre paramètres.  
+
+* Vous devez pour cela d'abord créer les matrices du modèle X pour chaque plan (standardisé pour que ce soit comparable)
+* Ensuite vous calculez $(X'X)^{-1}$
+* Puis vous comparez les écart-types et corrélations 
+
+```{r}
+# Génération des matrices du modèle
+ModQuad=formula(~x1+x2+x3+I(x1^2)+I(x2^2)+I(x3^2)+x1:x2+x1:x3+x2:x3)
+
+# necessaire de convertir la dataframe en numeric pour le PFC. Les autres le sont deja
+adfPFC=apply(PFC,2,as.numeric) 
+adfPFC <- as.data.frame(adfPFC)
+
+# Matrices X (fct de formule a estimer et du plan d'experience)
+XPFC=model.matrix(ModQuad,data=adfPFC)
+XPBB=model.matrix(ModQuad,data=adfPBB)
+XPCC1=model.matrix(ModQuad,data=adfPCC1)
+XPCC2=model.matrix(ModQuad,data=adfPCC2)
+
+# Calcul des matrices de Variances-Covariances (X'X)^-1
+MVCPFC=solve(t(XPFC)%*%XPFC)
+MVCPBB=solve(t(XPBB)%*%XPBB)
+MVCPCC1=solve(t(XPCC1)%*%XPCC1)
+MVCPCC2=solve(t(XPCC2)%*%XPCC2)
+
+# Comparaison des écart-types des paramètres
+dfse=cbind(PFC=sqrt(diag(MVCPFC)),PBB=sqrt(diag(MVCPBB)),PCC1=sqrt(diag(MVCPCC1)),PCC2=sqrt(diag(MVCPCC2)))
+pander(dfse)
+
+# Matrices des corrélations (attention on utilise la fonction corrPlot du package corrPlot et pas du package DoE.base)
+corrplot::corrplot(cov2cor(MVCPFC),main="Plan factoriel complet")
+corrplot::corrplot(cov2cor(MVCPBB),main="Plan de Box et Behnken")
+corrplot::corrplot(cov2cor(MVCPCC1),main="Plan CC Orthogonal")
+corrplot::corrplot(cov2cor(MVCPCC2),main="Plan CC Rotatable")
+```
+
+
+## Etude des variances de prédiction liées aux plans
+
+Sans considérer le PFC, quel plan a la meilleure variance de prédiction ?  
+
+###  Variances de prédiction avec contour plots  
+
+Attention ces graphes ne regardent ce qui se passe que pour 2 variables en supposant que la troisième =0.  
+
+```{r }
+PBB.df <- as.data.frame((PBB[,3:5]))
+### 
+par(mfrow=c(2,2))
+varfcn(adfPFC, ~SO(x1,x2,x3), contour=TRUE) #NB : SO(x1,x2,x3) = modele quadratique complet
+varfcn(PBB, ~SO(x1,x2,x3), contour=TRUE)
+varfcn(PCC1, ~SO(x1,x2,x3), contour=TRUE)
+varfcn(PCC2, ~SO(x1,x2,x3), contour=TRUE)
+par(mfrow=c(1,1))
+```
+
+
+###  Variances de prédiction directionnelles  
+
+La fonction `varfcn()` génère des directions par défaut le long d'un axe, et sur une diagonale passant par un coin dans chaque dimension. Ainsi, le graphique produit montre comment la variance évolue le long de chacun de ces vecteurs, pour les distances fournies. Dans une conception rotative, ces courbes seront toutes les mêmes (car peu importe la direction dans laquelle on va, l'évolution de la variance devrait être la même). 
+
+
+```{r }
+par(mfrow=c(2,2))
+varfcn(adfPFC, ~SO(x1,x2,x3), contour=FALSE)
+varfcn(PBB, ~SO(x1,x2,x3), contour=FALSE)
+varfcn(PCC1, ~SO(x1,x2,x3), contour=FALSE)
+varfcn(PCC2, ~SO(x1,x2,x3), contour=FALSE)
+par(mfrow=c(1,1))
+```
+  
+# Surface de réponse - Blanchiment du papier  
+
+## Contexte  
+
+Le blanchiment du papier est le traitement chimique de la pâte de bois ou du papier recyclé dans le but d'éclaircir sa couleur et de blanchir la pâte, produisant ainsi un papier à la blancheur adaptée à l'usage final du papier. De nos jours, ce procédé est toujours en évolution suite aux efforts pour minimiser son impact environnemental et pour réduire sa dépendance à la chlorine.  
+
+## Etude du plan expérimental  
+
+* Importez le fichier `TP8_test.csv`  
+
+* Représentez le plan graphiquement et/ou sous forme de tableau  
+
+* Quels sont les facteurs testés dans l'expérience ? Sont-ils quantitatifs ou qualitatifs ?  
+
+* Quel est le type de plan d'expérience ?    
+
+```{r}
+# Importation des donnees
+mydata <- read.csv("TP8_test.csv")
+mydata$TypAlka <- as.factor(mydata$TypAlka) 
+
+# Representation du design en 2D (voir sections precedantes)
+# plotDesign()
+
+# Representation du design en 3D (voir sections precedantes)
+# plotly::plot_ly() 
+```
+
+## Représentation graphique des réponses  
+
+* Sur base du script suivant, que pouvez-vous dire de l'effet des différents facteurs sur la Brightness (blancheur) ?   
+
+```{r}
+ggplot(data = mydata, aes(x = QtH2O2, y = Brightness, colour=factor(QtAlka))) +
+  geom_point() +  
+  theme_bw()+ labs(color = "QtAlka") +
+  geom_smooth(se = FALSE, method = lm, formula = y ~ poly(x, 2),linewidth=0.5) +
+  facet_wrap( ~ TypAlka)   
+
+```
+
+## Modélisation  
+
+### Standardisation des données  
+
+* Nous avons vu au TP précédant qu'il était intéressant de travailler avec des données standardisées. Voici un script qui permet de standardiser les données.  
+
+Ajout des colonnes:
+```{r}
+# Standardisation de QtH202
+milieuQtH2O2=(max(mydata$QtH2O2)+min(mydata$QtH2O2))/2
+etendueQtH2O2=(max(mydata$QtH2O2)-min(mydata$QtH2O2))/2
+mydata$QtH2O2s <- (mydata$QtH2O2-milieuQtH2O2)/etendueQtH2O2
+
+# Standardisation de QtAlka
+milieuQtAlka=(max(mydata$QtAlka)+min(mydata$QtAlka))/2
+etendueQtAlka=(max(mydata$QtAlka)-min(mydata$QtAlka))/2
+mydata$QtAlkas <- (mydata$QtAlka-milieuQtAlka)/etendueQtAlka
+
+# NB: il est aussi possible d'utiliser des fonctions toutes faites, comme : 
+# round(rescale(mydata$QtAlka, to = c(-1, 1)),2) #mais attention de toujours vérifier # ce qui est fait par la fonction.
+
+pander(mydata)
+```
+
+### Estimation du modèle  
+
+* Estimez maintenant votre modèle quadratique complet (interactions + termes quadratiques). Faudra-t-il utiliser `lm` ou `lmer` ?  
+
+* Notez aussi que dans les plans multifacteurs, il est d'usage de coder les facteurs catégoriels autrement qu'en choisissant le premier niveau comme niveau de référence.  Il est conseillé d'utiliser l'option 'contrasts = list(TypAlka = "contr.sum")'. Avec ce codage, le niveau de référence doit être considéré comme un Alcali moyen fictif.
+
+* Utilisez la fonction `model.matrix` pour voir comment ce codage est réalisé  
+
+* Réalisez une Anova pour voir quels effets sont significatifs 
+
+*Réponse*  
+
+Estimation du modèle:
+
+```{r}
+# Pour ce tp nous realiserons des Anova de type III via le package car
+# Voici comment l'utiliser : 
+# car::Anova(mod, type="III")
+```
+
+### Simplification du modèle  
+
+Sur base des résultats de l'ANOVA, pouvez-vous supprimer des termes/effets dans votre modèle ? Si oui, mettez à jour votre modèle (pour un $\alpha = 0.01$).    
+
+```{r}
+
+```
+
+### Analyse des résidus
+
+Analysez les résidus de votre modèle. Respectent-ils les hypothèses du modèle ?    
+
+```{r}
+
+```
+
+### Comparaison des alcalis
+
+Sur base de votre modèle, quel type d'alcali semble le plus intéressant à utiliser pour avoir une Brightness maximale ? Les différences de Brightness par rapport aux autres alkalis sont-elles significativement différentes ?   
+
+
+```{r}
+```
+
+## Analyses avec le package `rsm`
+
+Pour continuer la suite des analyses nous utiliserons un autre package, il s'agit du package `rsm`. Sur base du script réalisé ci-dessous, quelles sont les analyses supplémentaires réalisées avec la fonction `rsm`? Observez-vous des différences avec les résultats de votre modèle précédant ?  
+
+Estimation du modèle:
+
+```{r}
+### Methode rsm
+# SO : Second Order model (modele quadratique complet)
+res.model2 <- rsm(Brightness ~  SO(QtH2O2s, QtAlkas) + TypAlka, data = mydata, contrast=list(TypAlka= "contr.sum"))
+summary(res.model2)
+car::Anova(res.model2, type="III")
+```
+
+### Voici une manière de représenter les courbes d'iso-réponses par type d'alcali  
+
+* Sur base de ces figures, identifiez (graphiquement) des valeurs de type d'alcali, QtH2O2s et QtAlkas qui permettraient d'obtenir une Brigntness proche de 77,5 (plusieurs réponses possibles). Calculez aussi l'intervalle de prédictions.  
+
+* Sur base de votre choix, calculez les valeurs de Brightness prédites et leur intervalle de prediction.  
+
+* Retransformez ces valeurs en valeurs réelles.  
+
+* Réfléchissez à une manière de trouver les valeurs optimales à l'aide d'un code (cfr. exercice "code analyse surface de réponse" sur Moodle).   
+
+
+```{r}
+### Visualisation des courbes de Brightness en fonction du modèle
+par (mfrow = c(1,3))
+for (i in c("CaO","MgO","NaOH")){
+  contour.lm(res.model2, ~ QtH2O2s * QtAlkas + I(QtH2O2s^2)  + I(QtAlkas^2)   , image = T, at = list(TypAlka=i), main = i)
+}
+```
