@@ -1,0 +1,140 @@
+---
+title: "TP4 : Puissance et réplication" 
+author: "LBRAI2222"
+date: '`r format(Sys.time(), "%B %d, %Y")`'
+output:
+  html_document: # options pour la mise en page des sortie HTML
+  smart: FALSE
+  code_folding: hide #  Cache le code  
+  collapsed: yes # Crée un document unique 
+  fig_caption: yes # Figures encapsulées ? 
+  fig_height: 5 # Hauteur par défaut des figures
+  fig_width: 8 # Largeur par défaut des figures
+  highlight: tango # Style de mise en valeur du code
+  number_sections: yes # Ajout table des matières 
+  theme: united  # Style du document
+  toc: no 
+editor_options: 
+  chunk_output_type: console
+---
+  
+```{r setup, include = FALSE}
+rm(list=ls()) # nettoie le working directory
+# Pour éviter que Rmd mette par défaut deux # au début de chaque ligne de code:
+knitr::opts_chunk$set(comment="", warning=F) 
+
+# Liste des packages à charger
+require(pander) # Afficher de jolis tableaux
+panderOptions('missing', '') # Là où les données contiennent des Na, ne rien afficher
+require(ggplot2)
+theme_set(theme_classic()) # Afficher les graphes ggplot avec un fond blanc
+
+# TP2:
+require(lme4)
+require(simr)
+simrOptions(list(progress=F))
+```
+
+**Après avoir réussi avec succès votre mémoire de fin d'études, vous entamez une thèse pour poursuivre votre recherche sur l'impact de l'irrigation sur la croissance de plants de maïs. Vous décidez de vous focaliser sur deux niveaux d'irrigation correspondant au *WW* et *WLD* de votre mémoire.**  
+
+```{r}
+mydata <- read.csv("TP4_data.csv")
+```
+
+**1. En vous basant sur les données récoltées lors de votre mémoire (TP4_data.csv ), déterminez le LSD (basez-vous sur les résultats d'un modèle mixte sans interaction).**
+
+Utilisez la formule de LSD vue au cours. Vous pouvez calculer la statistique t à l'aide de la foncion `qt()`. 
+
+```{r}
+mod <- lmer(M ~ 1+ W + (1|Loc), mydata)
+s <- summary(mod)$sigma               #sigma= Std. Dev.of the residuals
+LSD <-  qt(0.975,48-1-3-1)*sqrt(2*s^2/24)
+
+```
+
+On obtient un LSD de `r LSD` g/plant  
+
+**2. À quoi correspond le LSD? Expliquez avec vos propres mots.** 
+
+Le LSD, c'est la différence $|\hat{\mu}_1 - \hat{\mu}_2|$ à partir de laquelle l'hypothèse $H_0: \delta = \mu_1-\mu_2=0$ ne pourra plus être acceptée. En d'autres mots, c'est la limite de la région d'acceptation pour un certain $\alpha$.  
+
+**3. Sans faire de calculs, quelle est la puissance de votre plan d'expérience pour détecter une différence $\delta = \mu_{WW} - \mu_{WLD}$ égale à votre LSD?**  
+50\% (explications en séance)
+
+**4. Vérifiez votre réponse du point précédent en effectuant 100 simulations correspondant à votre plan d'expérience (à l'aide de `simr::powerSim`).**  
+
+Pour extraire les paramètres de votre modèle :   
+- $(intercept)$ = *mod@beta[1]*  
+- Les variances liées aux facteurs aléatoires = *VarCorr(mod)*  
+
+**Indice** : Vous devez d'abord recréer votre plan d'expérience (via `expand.grid()`) puis simuler un modèle mixte à partir des paramètres estimés du modèle (via `makeLmer()`).  
+
+```{r}
+mu1est <- mod@beta[1]
+b <- c(mu1est, LSD)
+v <- VarCorr(mod)
+plan <- expand.grid(obs=factor(1:6), W = c("WW","WLD"), Loc = factor(1:4))
+modsim <- makeLmer(M ~ W + (1|Loc), fixef=b, VarCorr=v, sigma=s, data=plan)
+summary(modsim)
+simr::powerSim(modsim, nsim=100)
+```
+
+**5. Pourquoi n'obtenez-vous pas exactement la puissance trouvée au point 3?**  
+Car c'est une simulation. Si on refait la simulation un très grand nombre de fois on obtiendra bien une puissance de 50\%.  
+
+**Vous voulez à présent planifier votre prochaine expérience qui aura lieu dans les mêmes conditions que celles de votre mémoire. Vous aimeriez être capable de détecter une différence de croissance de 15 g/plant entre les deux niveaux d'irrigation. Répondez aux questions suivantes à l'aide de la fonction `powerCurve()` (nsim=20).**  
+
+**6. Si vous gardez 4 blocs (*Loc*) comme dans votre première expérience, combien de répétitions de traitements devez-vous faire dans chaque bloc pour avoir une puissance au moins égale à 80\% ? **  
+
+La fonction `powerCurve()`permet de calculer la puissance d'un modèle simulé en testant plusieurs valeurs de répétitions et de blocs. Pour bien l'utiliser, dans le plan que vous créer, vous devez indiquer le nombre maximal de répétition que vous voulez tester.
+```{r}
+b= c(mu1est, 15)
+plan <- expand.grid(obs=factor(1:20), W = c("WW","WLD"), Loc = factor(1:4))
+modsim <- makeLmer(M ~ W + (1|Loc), fixef=b, VarCorr=v, sigma=s, data=plan)
+pc_rep <- powerCurve(modsim, along='obs',breaks=1:20,nsim=20)
+plot(pc_rep)
+```
+
+(attention, cette réponse varie d'une simulation à l'autre)
+
+**7. Si vous gardez 6 répétitions de traitements par bloc (*Loc*), combien de blocs devez-vous avoir pour que votre plan ait une puissance au moins égale à 80\% ? **  
+(attention, cette réponse varie d'une simulation à l'autre)
+
+```{r}
+plan <- expand.grid(obs=factor(1:6), W = c("WW","WLD"), Loc = factor(1:15))
+modsim <- makeLmer(M ~ W + (1|Loc), fixef=b, VarCorr=v, sigma=s, data=plan)
+pc_Loc <- powerCurve(modsim, along='Loc',breaks=1:15,nsim=20)
+plot(pc_Loc)
+```
+
+**8. Laquelle de ces deux solutions vous permettra d'atteindre la puissance souhaitée avec le moins de plants possible? **  
+ 
+(attention, cette réponse varie d'une simulation à l'autre) 
+
+**9. Considérez un plan à 4 blocs (*Loc*). Si vous utilisez un $\alpha=0.01$, que devient votre réponse à la question 6 (vous devez refaire des simulations)? Quelle serait la conséquence de cette décision en termes de risques (indice: type d'erreur)?**  
+Si on diminue $\alpha$, on diminue le risque d'erreur de type I ($RH_0$|$H_0$). Par contre, on augmente le risque d'erreur de type II ($NRH_0$|$H_1$). La puissance du test va donc diminuer.
+```{r}
+plan <- expand.grid(obs=factor(1:20), W = c("WW","WLD"), Loc = factor(1:4))
+modsim <- makeLmer(M ~ W + (1|Loc), fixef=b, VarCorr=v, sigma=s, data=plan)
+pc_rep <- powerCurve(modsim, along ='obs',breaks=1:20,nsim=20, alpha=0.01)
+plot(pc_rep)
+
+```
+  
+On observe qu'il faut maintenant plus de répétitions pour avoir une puissance de 80% (attention, le nombre de répétition nécessaires varie d'une simulation à l'autre)
+
+**10. Vous avez à présent une meilleure idée du nombre de répétitions/nombre de blocs que vous devriez avoir pour atteindre la puissance désirée (avec $\alpha=0.05$). Vous pouvez donc affiner vos réponses des points 6 et 7 en effectuant 500 simulations pour des valeurs proches de celles obtenues précédement (attention le code met $\sim$ 5min à tourner)**  
+```{r}
+plan <- expand.grid(obs=factor(1:20), W = c("WW","WLD"), Loc = factor(1:4))
+modsim <- makeLmer(M ~ W + (1|Loc), fixef=b, VarCorr=v, sigma=s, data=plan)
+pc_rep <- powerCurve(modsim, within='W+Loc',breaks=14:17,nsim=500)
+plot(pc_rep)
+```
+
+```{r}
+plan <- expand.grid(obs=factor(1:6), W = c("WW","WLD"), Loc = factor(1:15))
+modsim <- makeLmer(M ~ W + (1|Loc), fixef=b, VarCorr=v, sigma=s, data=plan)
+pc_Loc <- powerCurve(modsim, along='Loc',breaks=7:11,nsim=500)
+plot(pc_Loc)
+```
+
