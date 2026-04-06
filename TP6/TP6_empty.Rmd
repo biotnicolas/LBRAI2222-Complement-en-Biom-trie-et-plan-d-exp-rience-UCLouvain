@@ -1,0 +1,62 @@
+---
+title: "TP6 : Modèles mixtes et design de plans"
+author: "LBRAI2222"
+date: '`r format(Sys.time(), "%B %d, %Y")`'
+output:
+  html_document: # options pour la mise en page des sortie HTML
+    smart: FALSE
+    code_folding: hide #  Cache le code  
+    collapsed: yes # Crée un document unique 
+    fig_caption: yes # Figures encapsulées ? 
+    fig_height: 5 # Hauteur par défaut des figures
+    fig_width: 8 # Largeur par défaut des figures
+    highlight: tango # Style de mise en valeur du code
+    number_sections: yes # Ajout table des matières 
+    theme: united  # Style du document
+    toc: no 
+---
+  
+```{r setup, include = FALSE}
+# Pour éviter que Rmd mette par défaut deux # au début de chaque ligne de code:
+knitr::opts_chunk$set(comment="") 
+
+# Liste des packages à charger
+require(pander) # Afficher de jolis tableaux
+panderOptions('missing', '') # Là où les données contiennent des Na, ne rien afficher
+require(ggplot2)
+theme_set(theme_classic()) # Afficher les graphes ggplot avec un fond blanc
+
+# TP2:
+require(lme4)
+require(lmerTest)
+require(plot.matrix)
+```
+# . Introduction  
+
+Voici une expérience au champ investigant les effets de quatre fongicides (F1, F2, F3,
+F4) sur le rendement de la pomme de terre, en comparaison avec un contrôle (sans traitement). On soupçonne l’existence d’un gradient naturel entre les parcelles, orienté Nord-Sud. Les chercheurs ont donc décidé de réaliser 4 blocs orientés Est-Ouest.  
+
+# . Chargez les données et observez à quoi elles ressemblent. De quel type de plan d'expérience s'agit-il ?   
+
+```{r}
+
+```
+
+# . Maintenant que vous voyez à quoi ressemblent vos données, écrivez l'équation d'un modèle qui permettrait de prédire les effets des quatres fongicides malgré la présence du gradient naturel. Affichez le `summary` de votre modèle.
+
+```{r}
+
+```
+
+# . Sur base des résultats de votre modèle quels fongicides ont un effet significatif sur le rendement ?  
+
+```{r}
+
+```
+
+# . Calculez le SED puis le LSD ($\alpha$ = 0.05). La différence entre la moyenne des plantes avec le fongicide 1 par rapport aux plantes témoins est-elle plus petite, plus grande ou égale au LSD ? Est-ce que cela vous paraît logique étant donné votre réponse à la question précédante ?  
+
+```{r}
+
+```
+
