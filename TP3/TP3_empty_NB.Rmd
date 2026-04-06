@@ -1,0 +1,151 @@
+---
+title: "TP3 : Modèles mixtes" 
+author: "LBRAI2222"
+date: '`r format(Sys.time(), "%B %d, %Y")`'
+output:
+  html_document: # options pour la mise en page des sortie HTML
+    smart: FALSE
+    code_folding: hide #  Cache le code  
+    collapsed: yes # Crée un document unique 
+    fig_caption: yes # Figures encapsulées ? 
+    fig_height: 5 # Hauteur par défaut des figures
+    fig_width: 8 # Largeur par défaut des figures
+    highlight: tango # Style de mise en valeur du code
+    number_sections: yes # Ajout table des matières 
+    theme: united  # Style du document
+    toc: yes # Table des matiere ?
+    toc_depth: 3  # Profondeur table des matières
+    toc_float: yes # Table des matières flottante
+---
+
+```{r setup, include = FALSE}
+# Pour éviter que Rmd mette par défaut deux # au début de chaque ligne de code:
+knitr::opts_chunk$set(comment="") 
+
+# Liste des packages à charger
+require(pander) # Afficher de jolis tableaux
+panderOptions('missing', '') # Là où les données contiennent des Na, ne rien afficher
+require(ggplot2)
+theme_set(theme_classic()) # Afficher les graphes ggplot avec un fond blanc
+# TP2:
+library(car)
+require(lme4)
+require(lmerTest)
+require(emmeans)
+require(plot.matrix)
+```
+
+# Introduction
+
+Vous êtes un mémorant de la faculté d'agro de l'UCLouvain, et vous avez lu l'article publié par Fanchon de Serres (chercheuse du TP1) sur l'impact de l'irrigation sur la croissance de plants de maïs. Vous voudriez utiliser le même protocole pour étudier l'impact de l'irrigation sur la croissance d'une autre variété de maïs. Vous rencontrez cependant un problème; le budget qui vous est alloué par la faculté ne vous permet pas d'installer des capteurs de lumière dans la serre que vous avez à votre disposition. Pourtant, vous savez que l'exposition des plants dans la serre est très hétérogène et que cela risque d'influencer vos résultats.  
+
+**Quelle solution pouvez-vous mettre en place pour palier à ce problème?**  
+(Répondez à cette question avant de passer à la suite)  
+
+Heureusement, vous avez assisté au cours LBRAI2222. Vous faites donc le plan suivant:  
+![](plan_TP3.PNG)  
+
+Vous réalisez l'expérience et rassemblez les données dans un fichier CSV *data_TP3.csv*. Ce fichier contient les variables suivantes :
+
+**M**: Biomasse accumulée sur une semaine ( poids frais, [g/plant])     
+**W**: Régime d'irrigation (WW=Well Watered, WLD=Water light deficit, WD=Water deficit)     
+**Loc**: Localisation de la table (North, South, West, East)    
+
+**1. Avant toute chose, il s'agit d'explorer et de visualiser vos données afin d'avoir un premier apperçu des variables et éventuels problèmes que vous pourriez rencontrer.**  
+```{r}
+
+```
+
+**2. Vous pouvez inclure le facteur 'Loc' de deux manières différentes dans votre modèle. Quelles sont-elles? Qu'est-ce qui justifierait le choix de l'une ou de l'autre? **  
+
+
+**3. Quel sera l'impact de ce choix sur la méthode d'estimation du modèle utilisé? **  
+
+# Modèle 1: ANOVA à un facteur
+**4. Estimez un modèle à un facteur sans prendre en compte le facteur 'Loc' avec la fonction `lm`. À quoi correspondent les colonnes *estimates* dans le *summary* ?  **  
+
+
+```{r}
+
+```
+
+**5. Quelles sont les moyennes estimées de la biomasse accumulée pour les trois régimes d'irrigation?**  
+
+$\hat{\mu}_{WD}=$ ? g/plant     
+$\hat{\mu}_{WLD}=$ ? g/plant    
+$\hat{\mu}_{WW}=$ ? g/plant    
+
+**6. Quel est le test fait dans l'anova?**  
+$H_0$: ?  
+$H_1$: ?   
+
+**7. Pourquoi la Std. Error de l'intercept est-elle différente que celle de WWLD et WWW ?**
+
+# Modèle 2: ANOVA à 2 facteurs
+
+**8. Réalisez maintenant un modèle en intégrant également le facteur 'Loc'(sans les interactions). Comparez le résultat de l'anova pour le facteur W avec l'anova du premier modèle. Pourquoi la valeur F est-elle beaucoup plus grande dans le deuxième modèle?**  
+
+
+```{r}
+
+```
+
+# Modèle 3: Modèle mixte
+
+**9. Réalisez un troisième modèle en utilisant le facteur 'Loc' comme aléatoire. A l'aide de la fonction `lmerTest::show_tests`trouvez quelle est la matrice $L$ utilisée par R pour réaliser le test de l'anova du troisième modèle sous forme de constrast ? **
+
+```{r}
+#1. Ecrire/créer son modèle mixte
+
+#2. Regarder les résultats via (1)'summary', (2)'anova'(partie fixe) et (3) 'ranova' (partie aléatoire)
+
+#3. Représenter la matrice L du contraste.
+#Remplacer "mod3" par votre modèle
+#test <- lmerTest::show_tests(anova(mod3))
+#L <- test$W
+#pander(L)
+
+#4. A quoi correspond cette matrice ?
+```
+
+**10. Donnez l'hypothèse $H_0$ du test effectué.**  
+$H_0:$ ?
+
+**11. Donnez la matrice L telle qu'elle serait utilisée avec votre matrice X complète.**  
+$L = \left( \begin{array}{cccc} ?&?&?&?\\ ?&?&?&? \end{array} \right)$
+
+**12. Comment pouvez-vous effectuer le même test à l'aide de la fonction `lmerTest::contest`?**  
+
+```{r}
+```
+
+# Comparaison des modèles
+## Intervalles de confiance
+
+**13. Calculez les intervales de confiances pour chaque niveau du facteur *w* pour les trois modèles **
+
+```{r}
+
+```
+**14. Comment sont calculés les SE et les df pour les modèles 1 et 2?**  
+
+**15. Pourquoi y a-t-il une grande différence entre les intervalles de confiance des différents modèles?**  
+
+
+## Tests
+**16. Utiliser deux manières différentes pour faire un test sur la différence attendue de croissance des plants entre les régimes d'irrigation $WLD$ et $WW$ (sur base du modèle 3). Pour cela, faites une fois les estimations avec `emmeans` et une autre fois à l'aide de `lmerTest::contest`**  
+
+```{r}
+
+```
+
+
+**17. Dans la fonction `lmerTest::contest`, à quoi sert l'option *joint*? Quel est le test qui est effectué selon que l'on utilise *joint=T* ou *joint=F*? **  
+
+
+```{r}
+
+```
+
+
+
